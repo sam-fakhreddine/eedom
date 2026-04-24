@@ -1,4 +1,4 @@
-# Agentic Dependency Dependency Review — v2
+# Agentic Dependency Review — v2
 
 ## OSS Architecture, Operating Model, and Phased Implementation Plan
 
@@ -6,7 +6,7 @@
 
 # 1. Executive Summary
 
-This document defines a **platform-agnostic, event-driven dependency dependency review system** for governing how third-party software packages and version upgrades are approved for use.
+This document defines a **platform-agnostic, event-driven dependency review system** for governing how third-party software packages and version upgrades are approved for use.
 
 The core objective is to move dependency security from a **reactive scanning model** to a **proactive eedom model**.
 
@@ -99,7 +99,7 @@ The target state is a system where:
 
 # 4. Core Concept
 
-## 4.1 Dependency Dependency Review
+## 4.1 Dependency Review
 
 The closest conceptual analogue is **Kubernetes Dependency Review**.
 
@@ -115,7 +115,7 @@ This system applies the same mental model to software dependencies.
 | Allow / deny / mutate               | Approve / reject / constrain              |
 | Cluster state                       | Internal artifact availability state      |
 
-The result is a **Dependency Dependency Reviewler**.
+The result is a **Eagle Eyed Dom**.
 
 ## 4.2 Why this is different from standard scanning
 
@@ -235,7 +235,7 @@ These capabilities exist in mature, well-maintained open-source tools. We should
 | Capability | Market Status |
 |---|---|
 | Task-fit / intent-aware dependency reasoning | No existing solution |
-| Centralized, event-driven dependency dependency review plane | No turnkey OSS solution |
+| Centralized, event-driven dependency review plane | No turnkey OSS solution |
 | Upgrade risk delta analysis as a first-class workflow | No unified solution |
 | Explainable decision memos composing scanner + policy + context | No existing solution |
 | Three-mode (monitor/advise/enforce) progressive rollout | No existing solution |
@@ -309,7 +309,7 @@ The following are assumed to exist before product development begins. If they do
 
 ## 9.1 Closest Conceptual Prior Art
 
-### Kubernetes dependency reviewlers
+### Kubernetes admission controllers
 
 Examples: OPA Gatekeeper, Kyverno
 
@@ -345,7 +345,7 @@ These establish provenance and evidence but do not independently solve contextua
 ### Largely uncovered and differentiated
 
 - task-fit / intent-aware dependency reasoning
-- centralized, event-driven dependency dependency review
+- centralized, event-driven dependency review
 - upgrade risk delta analysis as a first-class workflow
 - explainable, unified decision control plane that composes scanners and policy
 - progressive rollout with monitor/advise/enforce modes
