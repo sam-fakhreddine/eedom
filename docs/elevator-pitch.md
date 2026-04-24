@@ -91,6 +91,13 @@ It doesn't phone home by default. Telemetry is opt-in (`telemetry: {enabled: tru
 
 **Why telemetry exists:** Eedom dogfoods itself. Every scan is a data point about the tool's own reliability. When a plugin times out for 12% of users, when a parser chokes on a specific manifest format, when an error code fires that we've never seen before — telemetry surfaces it. A human triages the signal, files the bug, and an engineer fixes it. The tool gets better because it's watching itself fail in the real world, not in a test suite. Your opt-in telemetry makes the scanner more reliable for everyone — including you.
 
+**You choose the feedback loop.** Telemetry has two modes, configurable per install:
+
+- **`community`** (default when enabled) — operational signals flow back to the eedom project. Bugs found across the community are triaged, fixed, and shipped in the next release. You benefit from every other team's edge cases.
+- **`self-heal`** — signals stay within your infrastructure. Your eedom instance detects its own failures, files internal issues, and your team fixes them. The community version doesn't see your data, and you don't get community fixes automatically. For teams with strict data residency requirements or air-gapped environments.
+
+Both modes collect the same 9 signals. The only difference is where the data goes.
+
 ## One more thing
 
 Every scan produces a sealed evidence bundle — `decision.json` + `memo.md`, SHA-256 chained to the previous run. If someone asks "was this PR reviewed before it shipped?" — you can prove it. Cryptographically.
