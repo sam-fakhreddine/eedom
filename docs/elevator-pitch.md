@@ -1,81 +1,106 @@
-# Eagle Eyed Dom — Technical Brief
+# Eagle Eyed Dom — Automated Code Review for CI
 
-## One-liner
+## The problem
 
-Eagle Eyed Dom is a fully deterministic code and dependency review engine for CI — 15 plugins, zero LLM in the decision path, every finding reproducible.
+Your senior engineers spend hours per week reviewing PRs for the same categories of issues: unpinned dependencies, known CVEs, leaked secrets, copy-pasted code, complexity spikes, license violations, K8s misconfigs. These are mechanical checks — they don't require judgment, but they consume attention. Every hour a senior engineer spends on a mechanical review is an hour not spent on architecture, mentoring, or shipping.
 
----
+Meanwhile, the things that slip through — an unpinned dependency with a known CVE, a secret in a config file, a GPL-licensed transitive dep — are the ones that page you at 2am or show up in an audit.
 
-## What it does
+## What eedom does
 
-- Scans every PR that touches a dependency manifest or source file: runs 15 plugins in parallel covering vulnerabilities, license violations, secrets, code smells, unpinned deps, malware, copy-paste, complexity, naming conventions, and K8s misconfiguration
-- Evaluates all findings against OPA (Rego) policy rules — producing one of four verdicts: `reject`, `approve_with_constraints`, `approve`, or `needs_review`
-- Posts a Markdown PR comment with the verdict (BLOCKED / WARNINGS / ALL CLEAR), a 0–100 severity health score, and per-plugin finding tables; exports the same data as SARIF v2.1.0 for the GitHub Security tab
-- Writes a tamper-evident evidence bundle per run — `decision.json` + `memo.md` keyed by commit SHA and timestamp, sealed with a SHA-256 chain — and appends the decision to an append-only Parquet audit log queryable with DuckDB
+Drop it into your CI pipeline. It runs 15 scanners on every PR, evaluates findings against policy rules you control, and posts a clear verdict: **BLOCKED**, **WARNINGS**, or **ALL CLEAR** with a 0-100 health score.
 
----
+Your engineers open the PR. The review is already there. They read the verdict, focus on the business logic, and skip the mechanical checklist. The cognitive burden shifts from "did anyone check the deps" to "the tool checked the deps, here's what it found."
 
-## Technology stack
+**What it catches:**
 
-| Layer | What | Why |
-|-------|------|-----|
-| Scanners | Syft, OSV-Scanner, Trivy, ScanCode, Semgrep, PMD CPD, kube-linter, Lizard/Radon, cspell, ls-lint, ClamAV, Gitleaks, Supply Chain, Blast Radius | Best-in-class open source tools, each maintained by a dedicated community; swappable via plugin contract |
-| Policy | OPA (Rego v1) | Declarative, auditable, version-controlled policy; 6 rules, all individually toggleable |
-| Code graph | AST → SQLite | Blast radius, layer violations, dead code, complexity — built locally, no external service, incremental rebuild on file change |
-| Output | Markdown + SARIF v2.1.0 | Native GitHub Security tab integration via `upload-sarif` |
-| Container | DHI hardened Python 3.13, multi-stage build | All scanner binaries SHA-256 verified at build time; ClamAV signatures fetched at runtime (never baked stale); no secrets in image |
-| Evidence | Parquet + SHA-256 seal chain | Append-only audit log, tamper detection, DuckDB-queryable 27-column schema |
-| Config | `.eagle-eyed-dom.yaml` + OPA rules | Per-repo plugin enable/disable, threshold overrides, policy-as-code — no forking required |
+| Category | What it finds |
+|----------|--------------|
+| Vulnerabilities | Known CVEs across 18 ecosystems (npm, pip, Go, Rust, Java, ...) |
+| Secrets | API keys, tokens, passwords — 800+ patterns |
+| License risk | GPL, AGPL, SSPL in your dependency tree |
+| Supply chain | Unpinned deps, missing lockfiles, packages published < 30 days ago, malware |
+| Code quality | Cyclomatic complexity, copy-paste, naming conventions, spelling |
+| Infrastructure | K8s resource limits, privileged containers, latest tags |
+| Code structure | Blast radius (what breaks if you change this), layer violations, dead code |
 
----
+**What it produces:**
 
-## Security principles
+- A PR comment with the verdict, severity score, and per-category findings
+- SARIF output for the GitHub Security tab
+- A tamper-evident evidence log (SHA-256 sealed, Parquet audit trail, DuckDB-queryable)
 
-These are not aspirational. They are enforced by the implementation.
+## Why it's not another noisy scanner
 
-**Deterministic-first.** Every finding is reproducible. No model inference, no probabilistic scoring, no "AI confidence." The same input produces the same output every time. OPA decides, not a model.
+Most scanning tools produce a wall of findings and leave the engineer to triage. Eedom is different:
 
-**Fail-open, fail-loud.** A scanner timeout, a missing binary, a network failure, a database outage — none of these block the build. Every failure is visible in the PR comment with a structured error code. Silent passes are the enemy: `needs_review` is returned, never a phantom clean.
+1. **Policy decides, not the tool.** OPA rules define what blocks, what warns, and what passes. Your team writes the policy. The scanner enforces it. No ambiguous "medium confidence" — either it trips a rule or it doesn't.
 
-**Zero trust in the decision path.** The optional LLM task-fit advisory is strictly separated: it reads findings after the deterministic engine decides. It never influences the verdict. It is disabled by default (`ADMISSION_LLM_ENABLED=false`) and can be removed with a single config flag.
+2. **Deterministic.** Same code, same findings, every time. No model inference. No probabilistic scoring. No "AI detected a potential issue." The decision path is OPA + scanner output, fully reproducible, fully auditable.
 
-**Evidence is immutable.** Every scan writes `decision.json` + `memo.md` atomically (temp file → fsync → rename). Each run's seal chains to the previous run's SHA-256 hash. Tampering any artifact breaks the chain. The Parquet audit log is append-only; decisions are never updated in place.
+3. **Fail-open, fail-loud.** If a scanner times out or a binary is missing, the PR is NOT blocked. But the failure is visible in the comment — `[TIMEOUT] scancode timed out after 60s`. No silent passes. No phantom cleans.
 
-**Supply chain integrity.** Every scanner binary in the container image is SHA-256 verified at build time — the build fails hard on any hash mismatch, no silent pass. ClamAV virus definitions are fetched at container startup, never baked into the image, so they are never stale.
+4. **One comment, not fifteen.** All 15 scanners produce one unified PR comment with a single verdict. Your engineers read one thing, not one alert per tool.
 
-**Policy-as-code.** OPA rules are version-controlled Rego files checked into the repo. Thresholds are configuration, not hardcoded constants. Teams can override thresholds and toggle rules per repo via `.eagle-eyed-dom.yaml` without forking or patching the scanner.
+## How to adopt it
 
-**No shell injection.** All scanner subprocesses are invoked with list-form arguments — `shell=False` throughout. No user-supplied input (diff path, repo path) is concatenated into a shell string.
-
----
-
-## How it fits
-
-Drop the GitHub Action workflow file (`.github/workflows/gatekeeper.yml`) into any repo; it triggers on PRs that touch dependency manifests or source files and runs the full pipeline in a self-hosted container. The composite `action.yml` is a one-liner:
+**Option 1 — GitHub Action (5 minutes)**
 
 ```yaml
-- uses: org/eagle-eyed-dom@main
+- uses: org/eedom@main
   with:
-    operating-mode: advise
+    operating-mode: advise    # comment on PRs, don't block builds
     team: platform
 ```
 
-GATEKEEPER is a second entry point: a GitHub Copilot Extension that wraps the same deterministic pipeline as an interactive agent for reactive PR review, surfacing structured findings through the Copilot chat interface.
+Start in `advise` mode. It comments but doesn't block. Your team sees the findings for a sprint, tunes the policy (`.eagle-eyed-dom.yaml`), disables noisy plugins, adjusts thresholds. When confident: switch to `block`.
 
----
+**Option 2 — Self-hosted container**
+
+```bash
+podman run --rm -v $(pwd):/workspace eedom:latest \
+  review --repo-path /workspace --all
+```
+
+**Option 3 — GitHub Copilot Extension**
+
+GATEKEEPER wraps the same pipeline as an interactive Copilot agent — ask it about a specific package, run a targeted scan, get findings in chat.
+
+## What your team controls
+
+Everything. No vendor lock-in on policy.
+
+- **`.eagle-eyed-dom.yaml`** — enable/disable any of the 15 plugins, set thresholds, configure per-repo
+- **OPA rules** — 6 Rego rules, version-controlled, individually toggleable. Add your own.
+- **`--disable clamav,cspell`** — turn off plugins per-run from the CLI
+- **Monorepo support** — auto-discovers packages, runs per-package, respects per-directory config overrides
+
+## What it costs
+
+Nothing. PolyForm Shield 1.0.0 — free for internal use at any scale. No per-seat fees. No usage limits. No telemetry unless you opt in.
+
+The only restriction: you can't build a competing code review product on top of it.
 
 ## What it doesn't do
 
-**Does not auto-fix.** Eagle Eyed Dom finds and reports. Agentic remediation — where an LLM reads findings, follows per-finding-type rules from config, opens a fix PR, and re-runs the scan to verify — is the v2.0 roadmap item. It is not in the current release.
+It doesn't auto-fix. It finds and reports. Your engineers make the decisions.
 
-**Does not replace your SAST or DAST.** It covers dependency vulnerabilities, license risk, secret leakage, code quality, supply chain integrity, and infrastructure misconfiguration. It does not perform dynamic testing, fuzzing, authentication testing, or runtime analysis.
+It doesn't replace your SAST/DAST. It covers dependencies, supply chain, code quality, and infrastructure — not runtime testing, fuzzing, or auth flows.
 
-**Does not phone home.** There is no telemetry in the current release. An opt-in telemetry system — collecting only operational signals (plugin success rates, scan times, error codes) with no repo content, no file paths, no package names — is a v1.2 roadmap item. When it ships, it will be opt-in via `.eagle-eyed-dom.yaml` and disabled by default.
+It doesn't phone home. Telemetry is opt-in, disabled by default, and collects only operational signals (scan times, error rates) — never source code, file paths, or package names.
+
+## One more thing
+
+Every scan produces a sealed evidence bundle — `decision.json` + `memo.md`, SHA-256 chained to the previous run. If someone asks "was this PR reviewed before it shipped?" — you can prove it. Cryptographically.
+
+The audit log is a 27-column Parquet file. Point DuckDB at it:
+
+```sql
+SELECT package_name, decision, vuln_critical
+FROM 'evidence/decisions.parquet'
+WHERE team = 'platform' AND decision = 'reject'
+```
 
 ---
 
-## License
-
-PolyForm Shield 1.0.0 — free for internal use at any scale, prohibits building a competing product on top of it. No per-seat fees, no usage limits, no call-home requirement.
-
-The enterprise orchestrator (fleet management, org-wide compliance controller, deploy gate) is a separate repo under BSL 1.1 with a 3-year conversion to Apache-2.0.
+Questions? Run `eedom review --repo-path . --all` against your own repo. If the findings aren't useful, don't adopt it. If they are — that's the pitch.
