@@ -87,7 +87,9 @@ It doesn't auto-fix. It finds and reports. Your engineers make the decisions.
 
 It doesn't replace your SAST/DAST. It covers dependencies, supply chain, code quality, and infrastructure — not runtime testing, fuzzing, or auth flows.
 
-It doesn't phone home. Telemetry is opt-in, disabled by default, and collects only operational signals (scan times, error rates) — never source code, file paths, or package names.
+It doesn't phone home by default. Telemetry is opt-in (`telemetry: {enabled: true}` in config) and collects only operational signals — never source code, file paths, or package names.
+
+**Why telemetry exists:** Eedom dogfoods itself. Every scan is a data point about the tool's own reliability. When a plugin times out for 12% of users, when a parser chokes on a specific manifest format, when an error code fires that we've never seen before — telemetry surfaces it. A human triages the signal, files the bug, and an engineer fixes it. The tool gets better because it's watching itself fail in the real world, not in a test suite. Your opt-in telemetry makes the scanner more reliable for everyone — including you.
 
 ## One more thing
 
