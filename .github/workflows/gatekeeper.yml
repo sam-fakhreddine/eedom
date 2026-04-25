@@ -74,6 +74,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Request Copilot review
+        if: github.event_name == 'pull_request'
+        run: gh pr edit "$PR_NUM" --add-reviewer @copilot || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+
       - name: Detect runtime
         id: runtime
         run: |
