@@ -7,6 +7,33 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.1](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.0...eedom-v0.2.1) (2026-04-25)
+
+
+### Features
+
+* eedom v1.2.0 — clean scanner repo, split from securePackages ([acf67fc](https://github.com/gitrdunhq/eedom/commit/acf67fc587538e002363a6dc79dc27214fa58a32))
+* native PR review posting — inline comments from SARIF ([#25](https://github.com/gitrdunhq/eedom/issues/25)) ([70bac2a](https://github.com/gitrdunhq/eedom/commit/70bac2a17f0a22293aada9f641a447f2ea3bba4b))
+* SLSA Level 3 build provenance for container images ([#29](https://github.com/gitrdunhq/eedom/issues/29)) ([#30](https://github.com/gitrdunhq/eedom/issues/30)) ([7338837](https://github.com/gitrdunhq/eedom/commit/7338837fc44190a02cc73e0daa31ceb16be0ecb2))
+
+
+### Bug Fixes
+
+* Copilot request failure adds dom: needs-copilot label + comment ([7155646](https://github.com/gitrdunhq/eedom/commit/715564660c6b74b685a8c1cdc8cc249cfd34df90))
+* remove --add-reviewer [@copilot](https://github.com/copilot) from CI — GITHUB_TOKEN lacks permission ([af79ebd](https://github.com/gitrdunhq/eedom/commit/af79ebd29ccf4abac92bf35324669231fd9e70a3))
+* repair double-word stutters from admission rename ([#6](https://github.com/gitrdunhq/eedom/issues/6)) ([f098504](https://github.com/gitrdunhq/eedom/commit/f09850471ca32d4f270e06bee22a3bdb49cd6601))
+* resolve all 14 dogfood findings ([#22](https://github.com/gitrdunhq/eedom/issues/22)) ([d1a19c3](https://github.com/gitrdunhq/eedom/commit/d1a19c367660016d80bedd432ca1519d5ce2a12b))
+* semgrep subprocess-no-timeout false positives + 3 new rules ([#13](https://github.com/gitrdunhq/eedom/issues/13)) ([9872a3d](https://github.com/gitrdunhq/eedom/commit/9872a3dbf007f38ac1006db493c63dc6df9475f3))
+* top 10 dogfood findings — eedom self-heals ([#8](https://github.com/gitrdunhq/eedom/issues/8)) ([9b7a839](https://github.com/gitrdunhq/eedom/commit/9b7a8398410a685b30c75d2cdc4b72f78b81b7d8))
+* try requesting Copilot review, fail silently if token lacks permission ([12860f8](https://github.com/gitrdunhq/eedom/commit/12860f8be0aa0beee63ab4c58e0ddb465f2ec332))
+
+
+### Documentation
+
+* explain telemetry value — eedom dogfoods itself, human-triaged bug fixing in realtime ([583c487](https://github.com/gitrdunhq/eedom/commit/583c48701e100f6701ae986788ba2a039dc20e07))
+* rewrite elevator pitch — cognitive burden reduction for engineering teams ([79f3144](https://github.com/gitrdunhq/eedom/commit/79f3144578608b2e3f16f4abb71fe7e3c28c5488))
+* telemetry modes — community (contribute back) vs self-heal (internal only) ([aaf3200](https://github.com/gitrdunhq/eedom/commit/aaf32001e474652a46b0c382207b1ee0228f70ee))
+
 ## [Unreleased]
 
 ### Added
