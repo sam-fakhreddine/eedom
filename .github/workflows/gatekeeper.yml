@@ -2,48 +2,6 @@ name: GATEKEEPER — Dependency & Code Review
 
 on:
   pull_request:
-    paths:
-      # Python
-      - "requirements*.txt"
-      - "pyproject.toml"
-      - "setup.py"
-      - "setup.cfg"
-      - "Pipfile*"
-      # JavaScript/TypeScript
-      - "package.json"
-      - "package-lock.json"
-      - "yarn.lock"
-      - "pnpm-lock.yaml"
-      # Rust
-      - "Cargo.toml"
-      - "Cargo.lock"
-      # Go
-      - "go.mod"
-      - "go.sum"
-      # Ruby
-      - "Gemfile"
-      - "Gemfile.lock"
-      # .NET
-      - "*.csproj"
-      - "packages.config"
-      - "Directory.Packages.props"
-      # Dart/Flutter
-      - "pubspec.yaml"
-      - "pubspec.lock"
-      # PHP
-      - "composer.json"
-      - "composer.lock"
-      # Elixir
-      - "mix.exs"
-      - "mix.lock"
-      # Source code (for Semgrep)
-      - "**/*.py"
-      - "**/*.js"
-      - "**/*.ts"
-      - "**/*.go"
-      - "**/*.rs"
-      - "**/*.java"
-      - "**/*.rb"
 
   workflow_dispatch:
     inputs:

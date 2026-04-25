@@ -21,12 +21,12 @@
 | Plugin | Findings |
 |--------|----------|
 | Files scanned | {{ file_count }} |
-{% for key, value in summary_rows %}
+{%- for key, value in summary_rows %}
 | {{ key }} | {{ value }} |
-{% endfor %}
-{% if mi_grade %}
+{%- endfor %}
+{%- if mi_grade %}
 | Maintainability | {{ mi_icon }} {{ mi_grade }} ({{ mi_score }}/100) |
-{% endif %}
+{%- endif %}
 
 {% for section in sections %}
 {{ section }}
