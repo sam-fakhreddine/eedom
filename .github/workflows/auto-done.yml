@@ -18,41 +18,35 @@ jobs:
         with:
           github-token: ${{ secrets.GITRDUNHQ_PROJECT_BOT }}
           script: |
-            const org = 'gitrdunhq';
+            const org = context.repo.owner;
             const repo = context.repo.repo;
+            const projectNumber = 3;
             const isIssue = context.eventName === 'issues';
             const nodeId = isIssue
               ? context.payload.issue.node_id
               : context.payload.pull_request.node_id;
 
-            // Find which project this repo is linked to
+            // Load the known project directly to avoid fragile paginated discovery
             const { organization } = await github.graphql(`
-              query($org: String!) {
+              query($org: String!, $projectNumber: Int!) {
                 organization(login: $org) {
-                  projectsV2(first: 20) {
-                    nodes {
-                      id
-                      title
-                      repositories(first: 50) {
-                        nodes { name }
-                      }
-                      field(name: "Status") {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          options { id name }
-                        }
+                  projectV2(number: $projectNumber) {
+                    id
+                    title
+                    field(name: "Status") {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        options { id name }
                       }
                     }
                   }
                 }
-              }`, { org });
+              }`, { org, projectNumber });
 
-            const project = organization.projectsV2.nodes.find(p =>
-              p.repositories.nodes.some(r => r.name === repo)
-            );
+            const project = organization.projectV2;
 
             if (!project) {
-              console.log(`No project found linked to ${repo}, skipping`);
+              console.log(`Project #${projectNumber} not found for ${org}, skipping`);
               return;
             }
 
