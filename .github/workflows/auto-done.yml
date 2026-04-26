@@ -63,23 +63,33 @@ jobs:
             }
 
             // Find the item on the project board
-            const { node } = await github.graphql(`
-              query($nodeId: ID!) {
-                node(id: $nodeId) {
-                  ... on Issue {
-                    projectItems(first: 10) {
-                      nodes { id project { id } }
-                    }
-                  }
-                  ... on PullRequest {
-                    projectItems(first: 10) {
-                      nodes { id project { id } }
-                    }
-                  }
-                }
-              }`, { nodeId });
+            let item = null;
+            let cursor = null;
+            let hasNextPage = true;
 
-            const item = node.projectItems.nodes.find(i => i.project.id === project.id);
+            while (!item && hasNextPage) {
+              const { node } = await github.graphql(`
+                query($nodeId: ID!, $cursor: String) {
+                  node(id: $nodeId) {
+                    ... on Issue {
+                      projectItems(first: 100, after: $cursor) {
+                        nodes { id project { id } }
+                        pageInfo { hasNextPage endCursor }
+                      }
+                    }
+                    ... on PullRequest {
+                      projectItems(first: 100, after: $cursor) {
+                        nodes { id project { id } }
+                        pageInfo { hasNextPage endCursor }
+                      }
+                    }
+                  }
+                }`, { nodeId, cursor });
+
+              item = node.projectItems.nodes.find(i => i.project.id === project.id);
+              hasNextPage = node.projectItems.pageInfo.hasNextPage;
+              cursor = node.projectItems.pageInfo.endCursor;
+            }
             if (!item) {
               console.log(`Item not found on project ${project.title}, skipping`);
               return;
