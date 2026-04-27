@@ -26,6 +26,7 @@ permissions:
 jobs:
   gatekeeper:
     name: GATEKEEPER Review
+    if: ${{ !startsWith(github.head_ref || '', 'release-please--') }}
     runs-on: self-hosted
     timeout-minutes: 10
 
