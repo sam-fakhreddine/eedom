@@ -15,14 +15,20 @@ import structlog
 
 from eedom.core.plugin import (
     PluginCategory,
+    PluginFinding,
     PluginResult,
     ScannerPlugin,
+    normalize_finding,
 )
 
 if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger()
+
+
+def _normalize_findings(findings: list) -> list[PluginFinding]:
+    return [f if isinstance(f, PluginFinding) else normalize_finding(f) for f in findings]
 
 
 def _topological_sort(plugins: list[ScannerPlugin]) -> list[ScannerPlugin]:
@@ -234,6 +240,7 @@ class PluginRegistry:
         try:
             result = plugin.run(files, repo_path)
             result.category = cat
+            result.findings = _normalize_findings(result.findings)
             return result
         except Exception as exc:
             logger.warning(
