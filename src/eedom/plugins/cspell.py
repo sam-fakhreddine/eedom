@@ -8,7 +8,6 @@ import contextlib
 import json
 import re
 import subprocess
-import tempfile
 from pathlib import Path
 
 from eedom.core.errors import ErrorCode, error_msg
@@ -32,29 +31,13 @@ class CspellPlugin(ScannerPlugin):
         return bool(files)
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
-        # cspell (Node.js) doesn't flush stdout in non-TTY mode.
-        # Use a temp cspell.json config to write JSON output to a file.
-        out_path = Path(tempfile.mktemp(suffix=".json"))
-        cfg_path = Path(tempfile.mktemp(suffix=".cspell.json"))
-        cfg_path.write_text(
-            json.dumps(
-                {
-                    "reporters": [
-                        "default",
-                        ["@cspell/cspell-json-reporter", {"outFile": str(out_path)}],
-                    ]
-                }
-            )
-        )
+        # Use JSON reporter — outputs structured JSON to stdout.
+        # Minimal flags only; extra flags like --no-progress break JSON capture.
         cmd = [
             "cspell",
             "lint",
-            "--no-progress",
-            "--no-summary",
-            "--locale",
-            "en-CA",
-            "--config",
-            str(cfg_path),
+            "--reporter",
+            "@cspell/cspell-json-reporter",
             *files,
         ]
 
@@ -67,40 +50,33 @@ class CspellPlugin(ScannerPlugin):
                 check=False,
             )
         except FileNotFoundError:
-            out_path.unlink(missing_ok=True)
-            cfg_path.unlink(missing_ok=True)
             return PluginResult(
                 plugin_name=self.name,
                 error=error_msg(ErrorCode.NOT_INSTALLED, "cspell"),
             )
         except subprocess.TimeoutExpired:
-            out_path.unlink(missing_ok=True)
-            cfg_path.unlink(missing_ok=True)
             return PluginResult(
                 plugin_name=self.name,
                 error=error_msg(ErrorCode.TIMEOUT, "cspell", timeout=60),
             )
-        finally:
-            cfg_path.unlink(missing_ok=True)
 
         findings = []
+        output = r.stdout or ""
 
-        if out_path.exists() and out_path.stat().st_size > 2:
-            with contextlib.suppress(json.JSONDecodeError, KeyError, TypeError):
-                data = json.loads(out_path.read_text())
-                for issue in data.get("issues", []):
-                    findings.append(
-                        {
-                            "file": issue.get("uri", "").removeprefix("file://"),
-                            "line": issue.get("row", 0),
-                            "word": issue.get("text", ""),
-                            "suggestions": ", ".join(
-                                s if isinstance(s, str) else str(s)
-                                for s in issue.get("suggestions", [])
-                            ),
-                        }
-                    )
-        out_path.unlink(missing_ok=True)
+        with contextlib.suppress(json.JSONDecodeError, KeyError, TypeError):
+            data = json.loads(output)
+            for issue in data.get("issues", []):
+                findings.append(
+                    {
+                        "file": issue.get("uri", "").removeprefix("file://"),
+                        "line": issue.get("row", 0),
+                        "word": issue.get("text", ""),
+                        "suggestions": ", ".join(
+                            s if isinstance(s, str) else str(s)
+                            for s in issue.get("suggestions", [])
+                        ),
+                    }
+                )
 
         # Fallback: parse text output from default reporter
         if not findings:
