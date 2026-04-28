@@ -51,7 +51,13 @@ class BlastRadiusPlugin(ScannerPlugin):
             db_dir = Path(tempfile.mkdtemp(prefix="eedom-blast-radius-"))
         db_path = str(db_dir / "code_graph.sqlite")
 
-        graph = CodeGraph(db_path=db_path)
+        from eedom.core.repo_config import load_repo_config
+
+        config = load_repo_config(repo_path)
+        br_thresholds = config.thresholds.get("blast-radius", {})
+        fan_out_limit = br_thresholds.get("fan_out_limit", 8)
+
+        graph = CodeGraph(db_path=db_path, fan_out_limit=fan_out_limit)
 
         if graph.stats()["symbols"] == 0:
             graph.index_directory(repo_path)
