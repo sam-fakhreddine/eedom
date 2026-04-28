@@ -45,10 +45,6 @@ class TestCpd:
 
         assert result.exit_code == 0, f"Exit code {result.exit_code}: {result.output}"
 
-        cpd_result = next((r for r in parsed.get("results", []) if r.get("plugin") == "cpd"), {})
-        if "NOT_INSTALLED" in cpd_result.get("error", ""):
-            pytest.skip("cpd not installed in container")
-
         findings = get_plugin_findings(parsed, "cpd")
         assert (
             len(findings) >= 1
@@ -80,12 +76,6 @@ class TestCspell:
         breakpoint_dump(tmp_path, "scanner_cspell", parsed)
 
         assert result.exit_code == 0, f"Exit code {result.exit_code}: {result.output}"
-
-        cspell_result = next(
-            (r for r in parsed.get("results", []) if r.get("plugin") == "cspell"), {}
-        )
-        if "NOT_INSTALLED" in cspell_result.get("error", ""):
-            pytest.skip("cspell not installed in container")
 
         findings = get_plugin_findings(parsed, "cspell")
         assert (
