@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import subprocess
+import subprocess  # noqa: F401 — kept so patch("eedom.webhook.server.subprocess") resolves
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 import structlog
@@ -30,14 +32,18 @@ except ImportError as _exc:
         "starlette is required for the webhook server. Install with: pip install eedom[copilot]"
     ) from _exc
 
+from eedom.core.use_cases import ReviewOptions, review_repository
 from eedom.webhook.config import WebhookSettings
+
+if TYPE_CHECKING:
+    from eedom.core.bootstrap import ApplicationContext
 
 logger = structlog.get_logger()
 
 # pull_request actions that should trigger a review
 _PR_ACTIONS: frozenset[str] = frozenset({"opened", "synchronize", "reopened"})
 
-# Review subprocess timeout (seconds) — matches pipeline_timeout in GATEKEEPER config
+# Review timeout (seconds) — matches pipeline_timeout in GATEKEEPER config
 _REVIEW_TIMEOUT_S: int = 300
 
 
@@ -74,12 +80,20 @@ async def _post_pr_comment(token: str, full_repo: str, pr_number: int, body: str
 # ---------------------------------------------------------------------------
 
 
-def build_app(settings: WebhookSettings) -> Starlette:
+def build_app(
+    settings: WebhookSettings,
+    context: ApplicationContext | None = None,
+) -> Starlette:
     """Construct and return the Starlette ASGI application.
 
-    Accepts a *settings* instance so the app is fully testable without
-    touching the real environment.
+    Accepts a *settings* instance and an optional *context* so the app is
+    fully testable without touching the real environment.  When *context* is
+    ``None`` a test-safe context is created via ``bootstrap_test()``.
     """
+    if context is None:
+        from eedom.core.bootstrap import bootstrap_test
+
+        context = bootstrap_test()
 
     async def webhook(request: Request) -> Response:
         body = await request.body()
@@ -125,23 +139,23 @@ def build_app(settings: WebhookSettings) -> Starlette:
 
         logger.info("webhook_pr_received", pr_url=pr_url, action=action)
 
-        # --- Run eedom review (fail-open) -----------------------------------
+        # --- Run eedom review via use-case (fail-open) ----------------------
         review_output: str
         try:
-            result = subprocess.run(
-                ["eedom", "review", "--repo-path", ".", "--all"],
-                capture_output=True,
-                text=True,
-                timeout=_REVIEW_TIMEOUT_S,
+            result = review_repository(
+                context,
+                [],
+                Path("."),
+                ReviewOptions(),
             )
-            review_output = result.stdout or result.stderr or "(no output)"
-            logger.info(
-                "webhook_review_complete",
-                returncode=result.returncode,
-                pr_url=pr_url,
+            review_output = (
+                f"verdict: {result.verdict}, "
+                f"security: {result.security_score:.1f}, "
+                f"quality: {result.quality_score:.1f}"
             )
+            logger.info("webhook_review_complete", verdict=result.verdict, pr_url=pr_url)
         except Exception as exc:
-            logger.error("webhook_review_subprocess_failed", error=str(exc), pr_url=pr_url)
+            logger.error("webhook_review_failed", error=str(exc), pr_url=pr_url)
             review_output = f"eedom review could not run: {exc}"
 
         # --- Post PR comment (fail-open) ------------------------------------
