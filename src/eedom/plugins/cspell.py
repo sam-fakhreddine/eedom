@@ -60,30 +60,13 @@ class CspellPlugin(ScannerPlugin):
         ]
 
         try:
-            dictionary_args = [
-                arg for name in CSPELL_DICTIONARIES for arg in ("--dictionary", name)
-            ]
             r = subprocess.run(
-                [*base_cmd, *dictionary_args, "--dot", *files],
+                [*base_cmd, *files],
                 capture_output=True,
                 text=True,
                 timeout=60,
                 check=False,
             )
-            if (
-                r.returncode != 0
-                and not (r.stdout or "").strip()
-                and "dictionary" in (r.stderr or "").lower()
-            ):
-                # Some environments do not ship optional technical dictionaries.
-                # Retry with locale-only mode to preserve typo detection.
-                r = subprocess.run(
-                    [*base_cmd, "--dot", *files],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    check=False,
-                )
         except FileNotFoundError:
             return PluginResult(
                 plugin_name=self.name,
