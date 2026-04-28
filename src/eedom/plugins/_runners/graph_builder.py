@@ -78,10 +78,11 @@ def _load_builtin_checks() -> list[dict]:
 
 
 class CodeGraph:
-    def __init__(self, db_path: str = ":memory:") -> None:
+    def __init__(self, db_path: str = ":memory:", fan_out_limit: int = 8) -> None:
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(_SCHEMA)
+        self._fan_out_limit = fan_out_limit
         self._register_builtin_checks()
 
     def _register_builtin_checks(self) -> None:
@@ -145,6 +146,7 @@ class CodeGraph:
         findings: list[dict] = []
         for check in checks:
             query = check["query"].replace("{changed_files}", placeholders)
+            query = query.replace("{fan_out_limit}", str(self._fan_out_limit))
             try:
                 rows = self.conn.execute(query).fetchall()
                 for row in rows:

@@ -57,7 +57,7 @@ checks:
       JOIN edges e ON e.source_id = s.id AND e.kind = 'calls'
       WHERE s.file IN ({changed_files})
       GROUP BY s.id
-      HAVING calls_out > 8
+      HAVING calls_out > {fan_out_limit}
       ORDER BY calls_out DESC
 
   - name: deep_inheritance
