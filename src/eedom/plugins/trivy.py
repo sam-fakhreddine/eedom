@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from eedom.core.errors import ErrorCode, error_msg
+from eedom.core.ignore import load_ignore_patterns
 from eedom.core.plugin import PluginCategory, PluginResult, ScannerPlugin
 from eedom.core.subprocess_runner import SubprocessToolRunner
 from eedom.core.tool_runner import ToolInvocation, ToolRunnerPort
@@ -45,7 +46,12 @@ class TrivyPlugin(ScannerPlugin):
         return True
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
-        cmd = ["trivy", "fs", "--format", "json", "--scanners", "vuln", str(repo_path)]
+        cmd = ["trivy", "fs", "--format", "json", "--scanners", "vuln"]
+        for pattern in load_ignore_patterns(repo_path):
+            stripped = pattern.rstrip("/")
+            if stripped and not any(c in stripped for c in "*?["):
+                cmd.extend(["--skip-dirs", stripped])
+        cmd.append(str(repo_path))
         tool_result = self._runner.run(
             ToolInvocation(cmd=cmd, cwd=str(repo_path), timeout=_TIMEOUT)
         )
