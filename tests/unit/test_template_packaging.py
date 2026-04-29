@@ -93,7 +93,7 @@ def test_renderer_can_load_templates_in_installed_context():
     """
     import jinja2
 
-    from eedom.core.renderer import render_comment, PluginResult
+    from eedom.core.renderer import render_comment
 
     # Try to render a comment - this will fail if templates aren't accessible
     try:
