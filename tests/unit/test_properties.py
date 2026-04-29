@@ -31,34 +31,29 @@ from eedom.data.alternatives import categorize_package
 from eedom.data.scanners.osv import _cvss_score_to_severity
 
 # ---------------------------------------------------------------------------
-# Reusable strategies — refactored for lower complexity using @st.composite
+# Reusable strategies — refactored using @st.composite for clarity
 # ---------------------------------------------------------------------------
-
-
-def _text(min_size: int = 1, max_size: int = 100) -> st.SearchStrategy[str]:
-    """Base text strategy with configurable size."""
-    return st.text(min_size=min_size, max_size=max_size)
 
 
 @st.composite
 def _finding_strategy(draw: st.DrawFn) -> Finding:
-    """Refactored finding strategy using @st.composite for clarity."""
+    """Build a Finding with drawn values for property testing."""
     return Finding(
         severity=draw(st.sampled_from(list(FindingSeverity))),
         category=draw(st.sampled_from(list(FindingCategory))),
-        description=draw(_text(min_size=1, max_size=100)),
-        source_tool=draw(_text(min_size=1, max_size=20)),
-        package_name=draw(_text(min_size=1, max_size=50)),
-        version=draw(_text(min_size=1, max_size=20)),
-        advisory_id=draw(st.one_of(st.none(), _text(min_size=1, max_size=20))),
+        description=draw(st.text(min_size=1, max_size=100)),
+        source_tool=draw(st.text(min_size=1, max_size=20)),
+        package_name=draw(st.text(min_size=1, max_size=50)),
+        version=draw(st.text(min_size=1, max_size=20)),
+        advisory_id=draw(st.one_of(st.none(), st.text(min_size=1, max_size=20))),
     )
 
 
 @st.composite
 def _scan_result_strategy(draw: st.DrawFn) -> ScanResult:
-    """Refactored scan result strategy with extracted complexity."""
+    """Build a ScanResult with drawn values for property testing."""
     return ScanResult(
-        tool_name=draw(_text(min_size=1, max_size=20)),
+        tool_name=draw(st.text(min_size=1, max_size=20)),
         status=draw(st.sampled_from(list(ScanResultStatus))),
         findings=draw(st.lists(_finding_strategy(), min_size=0, max_size=10)),
         duration_seconds=draw(
@@ -71,48 +66,6 @@ def _scan_result_strategy(draw: st.DrawFn) -> ScanResult:
 _non_license_categories = [c for c in FindingCategory if c != FindingCategory.license]
 
 
-def _build_request(mode: OperatingMode) -> ReviewRequest:
-    """Build a minimal ReviewRequest for property testing."""
-    return ReviewRequest(
-        request_type=RequestType.new_package,
-        ecosystem="pypi",
-        package_name="test-pkg",
-        target_version="1.0.0",
-        team="test-team",
-        operating_mode=mode,
-    )
-
-
-def _build_policy(verdict: DecisionVerdict, rules: list[str]) -> PolicyEvaluation:
-    """Build a minimal PolicyEvaluation for property testing."""
-    return PolicyEvaluation(
-        decision=verdict,
-        triggered_rules=rules,
-        policy_bundle_version="1.0.0",
-    )
-
-
-def _build_request(mode: OperatingMode) -> ReviewRequest:
-    """Build a minimal ReviewRequest for property testing."""
-    return ReviewRequest(
-        request_type=RequestType.new_package,
-        ecosystem="pypi",
-        package_name="test-pkg",
-        target_version="1.0.0",
-        team="test-team",
-        operating_mode=mode,
-    )
-
-
-def _build_policy(verdict: DecisionVerdict, rules: list[str]) -> PolicyEvaluation:
-    """Build a minimal PolicyEvaluation for property testing."""
-    return PolicyEvaluation(
-        decision=verdict,
-        triggered_rules=rules,
-        policy_bundle_version="1.0.0",
-    )
-
-
 def _build_decision(
     mode: OperatingMode,
     verdict: DecisionVerdict,
@@ -121,12 +74,25 @@ def _build_decision(
     scan_results: list[ScanResult] | None = None,
 ) -> ReviewDecision:
     """Build a minimal ReviewDecision for property testing."""
+    request = ReviewRequest(
+        request_type=RequestType.new_package,
+        ecosystem="pypi",
+        package_name="test-pkg",
+        target_version="1.0.0",
+        team="test-team",
+        operating_mode=mode,
+    )
+    policy_eval = PolicyEvaluation(
+        decision=verdict,
+        triggered_rules=triggered_rules,
+        policy_bundle_version="1.0.0",
+    )
     return ReviewDecision(
-        request=_build_request(mode),
+        request=request,
         decision=verdict,
         findings=findings,
         scan_results=scan_results or [],
-        policy_evaluation=_build_policy(verdict, triggered_rules),
+        policy_evaluation=policy_eval,
         pipeline_duration_seconds=1.0,
     )
 
@@ -156,7 +122,7 @@ def test_cvss_severity_monotonic(score: float) -> None:
 # ---------------------------------------------------------------------------
 
 
-@given(scan_results=st.lists(_scan_result_strategy, min_size=0, max_size=10))
+@given(scan_results=st.lists(_scan_result_strategy(), min_size=0, max_size=10))
 @settings(max_examples=200)
 def test_normalize_never_adds_findings(scan_results: list[ScanResult]) -> None:
     """Normalization can only reduce or maintain finding count, never increase it.
@@ -176,17 +142,21 @@ def test_normalize_never_adds_findings(scan_results: list[ScanResult]) -> None:
 
 
 @given(
-    mode=st.sampled_from(list(OperatingMode)),
-    verdict=st.sampled_from(list(DecisionVerdict)),
-    findings=st.lists(_finding_strategy(), min_size=0, max_size=100),
-    triggered_rules=st.lists(st.text(min_size=1, max_size=200), min_size=0, max_size=50),
+    pkg_name=st.text(min_size=1, max_size=30),
+    version=st.text(min_size=1, max_size=20),
+    category=st.sampled_from(_non_license_categories),
+    advisory_id=st.one_of(st.none(), st.text(min_size=1, max_size=20)),
+    sev1=st.sampled_from(list(FindingSeverity)),
+    sev2=st.sampled_from(list(FindingSeverity)),
 )
 @settings(max_examples=200)
-def test_memo_always_under_limit(
-    mode: OperatingMode,
-    verdict: DecisionVerdict,
-    findings: list[Finding],
-    triggered_rules: list[str],
+def test_dedup_keeps_higher_severity(
+    pkg_name: str,
+    version: str,
+    category: FindingCategory,
+    advisory_id: str | None,
+    sev1: FindingSeverity,
+    sev2: FindingSeverity,
 ) -> None:
     """When two findings share a dedup key, the higher severity survives.
 
@@ -240,41 +210,16 @@ def test_memo_always_under_limit(
 
 
 # ---------------------------------------------------------------------------
-# Reusable strategies — refactored for lower complexity using @st.composite
+# 4. Decision memo is always under 4000 chars
 # ---------------------------------------------------------------------------
 
 
-def _text(min_size: int = 1, max_size: int = 100) -> st.SearchStrategy[str]:
-    """Base text strategy with configurable size."""
-    return st.text(min_size=min_size, max_size=max_size)
-
-
-@st.composite
-def _finding_strategy(draw: st.DrawFn) -> Finding:
-    """Refactored finding strategy using @st.composite for clarity."""
-    return Finding(
-        severity=draw(st.sampled_from(list(FindingSeverity))),
-        category=draw(st.sampled_from(list(FindingCategory))),
-        description=draw(_text(min_size=1, max_size=100)),
-        source_tool=draw(_text(min_size=1, max_size=20)),
-        package_name=draw(_text(min_size=1, max_size=50)),
-        version=draw(_text(min_size=1, max_size=20)),
-        advisory_id=draw(st.one_of(st.none(), _text(min_size=1, max_size=20))),
-    )
-
-
-@st.composite
-def _scan_result_strategy(draw: st.DrawFn) -> ScanResult:
-    """Refactored scan result strategy with extracted complexity."""
-    return ScanResult(
-        tool_name=draw(_text(min_size=1, max_size=20)),
-        status=draw(st.sampled_from(list(ScanResultStatus))),
-        findings=draw(st.lists(_finding_strategy(), min_size=0, max_size=10)),
-        duration_seconds=draw(
-            st.floats(min_value=0.0, max_value=60.0, allow_nan=False, allow_infinity=False)
-        ),
-        message=draw(st.one_of(st.none(), st.text(max_size=100))),
-    )
+@given(
+    mode=st.sampled_from(list(OperatingMode)),
+    verdict=st.sampled_from(list(DecisionVerdict)),
+    findings=st.lists(_finding_strategy(), min_size=0, max_size=100),
+    triggered_rules=st.lists(st.text(min_size=1, max_size=200), min_size=0, max_size=50),
+)
 @settings(max_examples=200)
 def test_memo_always_under_limit(
     mode: OperatingMode,

@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -33,7 +32,6 @@ from eedom.core.models import (
 from eedom.core.normalizer import _SEVERITY_RANK, normalize_findings
 from eedom.data.alternatives import categorize_package
 from eedom.data.scanners.osv import _cvss_score_to_severity
-
 
 # ---------------------------------------------------------------------------
 # Baseline complexity metrics for comparison
@@ -162,7 +160,7 @@ def test_complexity_baseline_recorded():
 
 def test_strategy_outputs_match_expected_shapes():
     """Verify refactored strategies produce correct output types."""
-    from hypothesis import given, strategies as st
+    from hypothesis import given
 
     @given(finding=_finding_strategy_refactored())
     def check_finding_shape(finding):
