@@ -12,9 +12,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
+
+import structlog
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -28,21 +31,32 @@ from eedom.core.solver import (
     solve_batch,
 )
 
+logger = structlog.get_logger()
+
+_GH_ENV = {k: v for k, v in os.environ.items() if k != "GITHUB_TOKEN"}
+_SOURCE_PATH_RE = re.compile(r"(?:src/eedom/[\w/]+\.py|policies/[\w/]+\.rego)")
+_PARENT_BUG_RE = re.compile(r"Parent bug:\s*#(\d+)")
+
 
 def _gh(*args: str) -> str:
-    env = {**os.environ}
-    env.pop("GITHUB_TOKEN", None)
     r = subprocess.run(
         ["gh", *args],
         capture_output=True,
         text=True,
-        env=env,
+        env=_GH_ENV,
         timeout=30,
     )
     if r.returncode != 0:
-        print(f"gh error: {r.stderr}", file=sys.stderr)
-        sys.exit(1)
+        raise RuntimeError(f"gh {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout.strip()
+
+
+def _gh_safe(*args: str) -> str | None:
+    try:
+        return _gh(*args)
+    except (RuntimeError, subprocess.TimeoutExpired) as exc:
+        logger.warning("gh_cli_failed", args=args[:3], error=str(exc))
+        return None
 
 
 def fetch_issues(numbers: list[int]) -> list[dict]:
@@ -55,7 +69,10 @@ def fetch_issues(numbers: list[int]) -> list[dict]:
             "--json",
             "number,title,body,labels",
         )
-        issues.append(json.loads(raw))
+        try:
+            issues.append(json.loads(raw))
+        except json.JSONDecodeError as exc:
+            logger.error("issue_parse_failed", issue=n, error=str(exc))
     return issues
 
 
@@ -72,48 +89,58 @@ def fetch_issues_by_label(label: str) -> list[dict]:
         "--json",
         "number,title,body,labels",
     )
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.error("issues_parse_failed", label=label, error=str(exc))
+        return []
 
 
 def _extract_source_paths(body: str) -> list[str]:
-    import re
-
-    matches = re.findall(r"(?:src/eedom/[\w/]+\.py|policies/[\w/]+\.rego)", body)
+    matches = _SOURCE_PATH_RE.findall(body)
     paths = [m.split(":")[0] for m in matches]
     return list(dict.fromkeys(paths))
 
 
 def _read_file_safe(path: str) -> str:
     p = Path(path)
-    if p.exists() and p.stat().st_size < 50_000:
-        return p.read_text()
-    return ""
+    if not p.exists():
+        return ""
+    size = p.stat().st_size
+    if size > 50_000:
+        logger.warning("file_too_large", path=path, size=size)
+        return ""
+    return p.read_text(encoding="utf-8")
 
 
 def _resolve_parent_bug(body: str) -> dict | None:
-    import re
-
-    match = re.search(r"Parent bug:\s*#(\d+)", body)
+    match = _PARENT_BUG_RE.search(body)
     if not match:
         return None
     parent_num = match.group(1)
-    raw = _gh("issue", "view", parent_num, "--json", "number,title,body")
-    return json.loads(raw)
+    raw = _gh_safe("issue", "view", parent_num, "--json", "number,title,body")
+    if raw is None:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
 
 
 def issue_to_task(issue: dict) -> SolverTask:
-    body = issue.get("body", "")
+    body = issue.get("body") or ""
     combined_body = body
 
     parent = _resolve_parent_bug(body)
     if parent:
+        parent_body = parent.get("body") or ""
         combined_body = (
             f"## Detector Task\n{body}\n\n"
             f"## Parent Bug #{parent['number']}: {parent['title']}\n"
-            f"{parent['body']}"
+            f"{parent_body}"
         )
 
-    source_text = parent["body"] if parent else body
+    source_text = (parent.get("body") or "") if parent else body
     source_paths = _extract_source_paths(source_text)
     source_files = {}
     test_files = {}
@@ -122,7 +149,7 @@ def issue_to_task(issue: dict) -> SolverTask:
         content = _read_file_safe(sp)
         if content:
             source_files[sp] = content
-            test_name = sp.replace("src/eedom/", "tests/unit/test_")
+            test_name = f"tests/unit/test_{Path(sp).name}"
             test_content = _read_file_safe(test_name)
             if test_content:
                 test_files[test_name] = test_content
@@ -179,11 +206,15 @@ def main() -> None:
 
     api_key = os.environ.get("OPENROUTER_EEDOM", "")
     if not api_key and not args.dry_run:
-        print("OPENROUTER_EEDOM env var required", file=sys.stderr)
+        logger.error("missing_api_key", var="OPENROUTER_EEDOM")
         sys.exit(1)
 
     if args.issues:
-        numbers = [int(n.strip()) for n in args.issues.split(",")]
+        try:
+            numbers = [int(n.strip()) for n in args.issues.split(",") if n.strip()]
+        except ValueError:
+            parser.error("--issues must be comma-separated integers")
+            return
         issues = fetch_issues(numbers)
     elif args.group:
         label = f"group:{args.group}"
@@ -195,13 +226,18 @@ def main() -> None:
     tasks = [issue_to_task(i) for i in issues]
 
     if not tasks:
-        print("No issues found")
+        logger.info("no_issues_found")
         return
 
-    print(f"Loaded {len(tasks)} tasks:")
+    logger.info("tasks_loaded", count=len(tasks))
     for t in tasks:
         src = len(t.source_files)
-        print(f"  #{t.issue_number}: {t.title} ({src} source files)")
+        logger.info(
+            "task_summary",
+            issue=t.issue_number,
+            title=t.title,
+            source_files=src,
+        )
 
     if args.dry_run:
         from eedom.core.solver import build_prompt
@@ -211,8 +247,8 @@ def main() -> None:
         for t in tasks:
             prompt = build_prompt(t)
             path = out / f"prompt_{t.issue_number}.md"
-            path.write_text(prompt)
-            print(f"  Wrote {path} ({len(prompt)} chars)")
+            path.write_text(prompt, encoding="utf-8")
+            logger.info("dry_run_wrote", path=str(path), chars=len(prompt))
         return
 
     config = SolverConfig(
@@ -227,18 +263,25 @@ def main() -> None:
         ]
 
     def on_result(r: SolverResult) -> None:
-        icon = "✓" if r.status == TaskStatus.SUCCESS else "✗"
-        model = r.model_used or "none"
-        print(f"  {icon} #{r.issue_number}: {r.status} ({model}, {r.duration_s}s)")
+        logger.info(
+            "task_result",
+            issue=r.issue_number,
+            status=r.status,
+            model=r.model_used or "none",
+            duration_s=r.duration_s,
+        )
 
     results = solve_batch(tasks, config, on_result=on_result)
 
     succeeded = sum(1 for r in results if r.status == TaskStatus.SUCCESS)
-    print(f"\nDone: {succeeded}/{len(results)} succeeded")
+    logger.info("batch_done", succeeded=succeeded, total=len(results))
 
     manifest = Path(args.output_dir) / "manifest.json"
-    manifest.write_text(
-        json.dumps(
+    import orjson
+
+    tmp = manifest.with_suffix(".tmp")
+    tmp.write_bytes(
+        orjson.dumps(
             [
                 {
                     "issue": r.issue_number,
@@ -252,10 +295,11 @@ def main() -> None:
                 }
                 for r in results
             ],
-            indent=2,
+            option=orjson.OPT_INDENT_2,
         )
     )
-    print(f"Manifest: {manifest}")
+    os.replace(tmp, manifest)
+    logger.info("manifest_written", path=str(manifest))
 
 
 if __name__ == "__main__":
