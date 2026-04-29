@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from eedom.agent.prompt import build_system_prompt
+from tests.unit.prose_assertions import assert_review_prose_contract
 
 _ALL_DIMENSIONS = [
     "NECESSITY",
@@ -73,3 +74,18 @@ def test_system_prompt_mentions_three_tools():
     assert "evaluate_change" in prompt
     assert "check_package" in prompt
     assert "scan_code" in prompt
+
+
+def test_system_prompt_requires_prescriptive_review_comments():
+    prompt = build_system_prompt(policy_version="1.0.0")
+
+    assert "**Required:**" in prompt
+    assert "**Consider:**" in prompt
+    assert "**FYI:**" in prompt
+    assert "Why it matters:" in prompt
+    assert "Fix:" in prompt
+    assert "Done when:" in prompt
+    assert "Verify:" in prompt
+    assert "comment about the code" in prompt
+    assert "not the developer" in prompt
+    assert_review_prose_contract(prompt)
