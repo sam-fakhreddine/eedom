@@ -6,13 +6,13 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 from eedom.core.models import (
-    ReviewDecision,
-    ReviewRequest,
     BypassRecord,
     DecisionVerdict,
     OperatingMode,
     PolicyEvaluation,
     RequestType,
+    ReviewDecision,
+    ReviewRequest,
     ScanResult,
     ScanResultStatus,
 )

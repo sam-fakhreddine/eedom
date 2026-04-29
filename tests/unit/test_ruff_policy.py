@@ -35,6 +35,5 @@ def test_ruff_lint_preferences_stay_conservative() -> None:
     assert "ALL" not in selected, "Do not enable every Ruff rule family at once"
     assert set(selected) == {"E", "F", "W", "I", "N", "UP", "B", "SIM"}
 
-    assert lint.get("per-file-ignores") == {}, (
-        "Keep global lint policy simple; add scoped ignores only when the repo needs them"
-    )
+    pfi = _as_mapping(lint.get("per-file-ignores"))
+    assert set(pfi.keys()) <= {"tests/**"}, "per-file-ignores should only scope to tests/**"

@@ -122,9 +122,9 @@ def test_workflows_use_only_sha_pinned_allowlisted_actions() -> None:
 
             ref = match.group("ref")
             assert _FULL_SHA.fullmatch(ref), f"{location} must pin {action} to a full commit SHA"
-            assert _VERSION_COMMENT.search(comment), (
-                f"{location} must include a same-line version comment like '# v4'"
-            )
+            assert _VERSION_COMMENT.search(
+                comment
+            ), f"{location} must include a same-line version comment like '# v4'"
 
 
 def test_dependabot_updates_github_actions_with_review_labels() -> None:
@@ -176,9 +176,9 @@ def test_pull_request_target_workflows_do_not_checkout_or_execute_pr_head() -> N
         for step in _workflow_steps(workflow):
             uses = step.get("uses")
             if isinstance(uses, str):
-                assert not uses.startswith("actions/checkout@"), (
-                    f"{path.relative_to(_ROOT)} must not checkout code under pull_request_target"
-                )
+                assert not uses.startswith(
+                    "actions/checkout@"
+                ), f"{path.relative_to(_ROOT)} must not checkout code under pull_request_target"
 
             run = step.get("run")
             if isinstance(run, str):

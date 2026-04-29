@@ -4,6 +4,9 @@ title = "gitrdun custom gitleaks rules"
 paths = [
   '''\.claude/''',
   '''\.git/''',
+  '''\.venv/''',
+  '''venv/''',
+  '''node_modules/''',
   '''Dockerfile''',
   '''tests/''',
   '''\.temp/''',

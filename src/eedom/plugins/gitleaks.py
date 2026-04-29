@@ -56,13 +56,15 @@ class GitleaksPlugin(ScannerPlugin):
         report_file = Path(tempfile.mktemp(suffix=".json", prefix="gitleaks-"))
         cmd = [
             "gitleaks",
-            "dir",
+            "git",
             str(repo_path),
             "--report-format",
             "json",
             "--report-path",
             str(report_file),
             "--no-banner",
+            "--log-opts",
+            "--all -1",
         ]
         custom_config = repo_path / ".eedom" / "gitleaks.toml"
         if custom_config.is_file():

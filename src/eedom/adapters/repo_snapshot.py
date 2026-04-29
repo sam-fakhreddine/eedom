@@ -54,6 +54,6 @@ class GitWorktreeSnapshot:
         shutil.rmtree(worktree_path, ignore_errors=True)
 
 
-assert isinstance(GitWorktreeSnapshot(Path(".")), RepoSnapshotPort), (
-    "GitWorktreeSnapshot must satisfy RepoSnapshotPort"
-)
+assert isinstance(
+    GitWorktreeSnapshot(Path(".")), RepoSnapshotPort
+), "GitWorktreeSnapshot must satisfy RepoSnapshotPort"

@@ -1,7 +1,9 @@
 actions:
   - actions/attest
   - actions/attest-build-provenance
+  - actions/cache
   - actions/checkout
+  - actions/download-artifact
   - actions/github-script
   - actions/upload-artifact
   - astral-sh/setup-uv

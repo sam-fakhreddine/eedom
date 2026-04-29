@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from eedom.core.decision import assemble_decision
 from eedom.core.models import (
-    ReviewRequest,
     DecisionVerdict,
     Finding,
     FindingCategory,
@@ -12,6 +11,7 @@ from eedom.core.models import (
     OperatingMode,
     PolicyEvaluation,
     RequestType,
+    ReviewRequest,
     ScanResult,
     ScanResultStatus,
 )

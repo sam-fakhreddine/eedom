@@ -34,7 +34,7 @@ class ScanCodePlugin(ScannerPlugin):
                 ["scancode", "--license", "--json-pp", "-", str(repo_path)],
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=180,
                 check=False,
             )
         except FileNotFoundError:
@@ -43,7 +43,7 @@ class ScanCodePlugin(ScannerPlugin):
             )
         except subprocess.TimeoutExpired:
             return PluginResult(
-                plugin_name=self.name, error=error_msg(ErrorCode.TIMEOUT, "scancode", timeout=60)
+                plugin_name=self.name, error=error_msg(ErrorCode.TIMEOUT, "scancode", timeout=180)
             )
 
         try:

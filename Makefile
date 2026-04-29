@@ -70,6 +70,7 @@ dev:
 
 setup-dev: dev
 	@bash scripts/setup-dev.sh
+	@bash scripts/install-hooks.sh
 
 dogfood:
 	bash scripts/dogfood.sh
