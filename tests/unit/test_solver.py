@@ -3,34 +3,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import httpx
 import pytest
 from pydantic import ValidationError
-
-
-class TestSolverImports:
-    def test_solver_config_importable(self) -> None:
-        from eedom.core.solver import SolverConfig  # noqa: F401
-
-    def test_solver_task_importable(self) -> None:
-        from eedom.core.solver import SolverTask  # noqa: F401
-
-    def test_solver_result_importable(self) -> None:
-        from eedom.core.solver import SolverResult  # noqa: F401
-
-    def test_solve_importable(self) -> None:
-        from eedom.core.solver import solve  # noqa: F401
-
-    def test_solve_batch_importable(self) -> None:
-        from eedom.core.solver import solve_batch  # noqa: F401
-
-    def test_model_tier_importable(self) -> None:
-        from eedom.core.solver import ModelTier  # noqa: F401
-
-    def test_build_prompt_importable(self) -> None:
-        from eedom.core.solver import build_prompt  # noqa: F401
-
-    def test_openrouter_response_importable(self) -> None:
-        from eedom.core.solver import OpenRouterResponse  # noqa: F401
 
 
 class TestBuildPrompt:
@@ -38,7 +16,9 @@ class TestBuildPrompt:
         from eedom.core.solver import SolverTask, build_prompt
 
         task = SolverTask(
-            issue_number=236, title="OPA bug", body="The OPA adapter silently approves."
+            issue_number=236,
+            title="OPA bug",
+            body="The OPA adapter silently approves.",
         )
         prompt = build_prompt(task)
         assert "#236" in prompt
@@ -99,9 +79,17 @@ class TestCleanCode:
         raw = "import pytest\ndef test_x(): pass"
         assert _clean_code(raw) == raw
 
+    def test_strips_prose_before_fence(self) -> None:
+        from eedom.core.solver import _clean_code
+
+        raw = "Here is the code:\n```python\nimport pytest\n```"
+        result = _clean_code(raw)
+        assert "Here is" not in result
+        assert result.startswith("import pytest")
+
 
 class TestLooksLikePython:
-    def test_recognizes_test_code(self) -> None:
+    def test_recognizes_valid_test_code(self) -> None:
         from eedom.core.solver import _looks_like_python
 
         assert _looks_like_python("import pytest\ndef test_foo(): pass") is True
@@ -115,6 +103,11 @@ class TestLooksLikePython:
         from eedom.core.solver import _looks_like_python
 
         assert _looks_like_python("Here is the solution to your problem.") is False
+
+    def test_rejects_invalid_syntax_with_indicators(self) -> None:
+        from eedom.core.solver import _looks_like_python
+
+        assert _looks_like_python("import pytest\ndef test_x(: pass") is False
 
 
 class TestSolverConfig:
@@ -148,6 +141,18 @@ class TestSolverConfig:
 
         with pytest.raises(ValidationError):
             SolverConfig(max_retries=100)
+
+    def test_system_prompt_configurable(self) -> None:
+        from eedom.core.solver import SolverConfig
+
+        cfg = SolverConfig(system_prompt="Custom prompt")
+        assert cfg.system_prompt == "Custom prompt"
+
+    def test_system_prompt_has_default(self) -> None:
+        from eedom.core.solver import SolverConfig
+
+        cfg = SolverConfig()
+        assert "test engineer" in cfg.system_prompt
 
 
 class TestSolverTask:
@@ -242,7 +247,6 @@ class TestSanitizeCode:
     def test_flags_dangerous_patterns(self) -> None:
         from eedom.core.solver import _sanitize_code
 
-        # Build dangerous string without triggering safeguard hook
         danger = "import os\nos" + ".system('ls')"
         _, flags = _sanitize_code(danger)
         assert len(flags) > 0
@@ -250,7 +254,6 @@ class TestSanitizeCode:
     def test_flags_code_execution(self) -> None:
         from eedom.core.solver import _sanitize_code
 
-        # Build pattern without literal match
         danger = "result = ev" + "al(user_input)"
         _, flags = _sanitize_code(danger)
         assert len(flags) > 0
@@ -275,44 +278,48 @@ class TestSanitizeCode:
         code, _ = _sanitize_code(huge)
         assert len(code) <= _MAX_CODE_LENGTH
 
+    def test_no_false_positive_on_execute(self) -> None:
+        from eedom.core.solver import _sanitize_code
+
+        code = "def execute_query(): pass"
+        _, flags = _sanitize_code(code)
+        assert flags == []
+
 
 class TestExtractRateLimit:
     def test_returns_wait_when_remaining_low(self) -> None:
-        import time
-
-        import httpx
-
         from eedom.core.solver import _extract_rate_limit
 
-        future = str(int(time.time()) + 30)
-        headers = httpx.Headers({"x-ratelimit-remaining": "1", "x-ratelimit-reset": future})
+        headers = httpx.Headers({"x-ratelimit-remaining": "1", "x-ratelimit-reset": "9999999999"})
         wait = _extract_rate_limit(headers)
         assert wait is not None
         assert wait > 0
 
     def test_returns_none_when_remaining_high(self) -> None:
-        import httpx
-
         from eedom.core.solver import _extract_rate_limit
 
         headers = httpx.Headers({"x-ratelimit-remaining": "50", "x-ratelimit-reset": "9999999999"})
         assert _extract_rate_limit(headers) is None
 
     def test_returns_none_when_headers_missing(self) -> None:
-        import httpx
-
         from eedom.core.solver import _extract_rate_limit
 
         headers = httpx.Headers({})
         assert _extract_rate_limit(headers) is None
 
     def test_handles_malformed_header_values(self) -> None:
-        import httpx
-
         from eedom.core.solver import _extract_rate_limit
 
         headers = httpx.Headers({"x-ratelimit-remaining": "abc", "x-ratelimit-reset": "def"})
         assert _extract_rate_limit(headers) is None
+
+    def test_caps_wait_at_max(self) -> None:
+        from eedom.core.solver import _MAX_RATE_LIMIT_WAIT_S, _extract_rate_limit
+
+        headers = httpx.Headers({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "9999999999"})
+        wait = _extract_rate_limit(headers)
+        assert wait is not None
+        assert wait <= _MAX_RATE_LIMIT_WAIT_S
 
 
 class TestModelSpec:
@@ -327,3 +334,224 @@ class TestModelSpec:
 
         with pytest.raises(ValidationError):
             ModelSpec(id="test/model", tier=ModelTier.DENSE, context_window=0)
+
+
+class TestBackoff:
+    def test_caps_at_max(self) -> None:
+        from eedom.core.solver import _MAX_BACKOFF_S, _backoff
+
+        result = _backoff(20, multiplier=5.0)
+        assert result == _MAX_BACKOFF_S
+
+    def test_grows_exponentially(self) -> None:
+        from eedom.core.solver import _backoff
+
+        assert _backoff(0) == 1.0
+        assert _backoff(1) == 2.0
+        assert _backoff(2) == 4.0
+
+
+class TestAtomicWrite:
+    def test_writes_file_atomically(self, tmp_path: Path) -> None:
+        from eedom.core.solver import _atomic_write
+
+        target = tmp_path / "output.py"
+        _atomic_write(target, "import pytest\n")
+        assert target.read_text(encoding="utf-8") == "import pytest\n"
+        assert not target.with_suffix(".tmp").exists()
+
+
+class TestSolve:
+    """Tests for solve() — the core public function."""
+
+    def _make_task(self, issue: int = 1):
+        from eedom.core.solver import SolverTask
+
+        return SolverTask(issue_number=issue, title="Test bug", body="Fix this bug")
+
+    def _make_config(self, **kwargs):
+        from eedom.core.solver import ModelSpec, ModelTier, SolverConfig
+
+        defaults = {
+            "api_key": "sk-test-key",
+            "max_retries": 1,
+            "model_ladder": [
+                ModelSpec(id="test/model-a", tier=ModelTier.DENSE),
+                ModelSpec(id="test/model-b", tier=ModelTier.MOE),
+            ],
+        }
+        defaults.update(kwargs)
+        return SolverConfig(**defaults)
+
+    def _mock_response(self, code: str = "import pytest\ndef test_x(): pass") -> MagicMock:
+        import orjson
+
+        mock = MagicMock(spec=httpx.Client)
+        resp = MagicMock()
+        resp.text = orjson.dumps(
+            {"id": "x", "choices": [{"message": {"content": code}}], "model": "test"}
+        ).decode()
+        resp.status_code = 200
+        resp.headers = httpx.Headers({})
+        mock.post.return_value = resp
+        return mock
+
+    def test_success_on_first_model(self) -> None:
+        from eedom.core.solver import TaskStatus, solve
+
+        client = self._mock_response()
+        result = solve(self._make_task(), self._make_config(), client=client)
+        assert result.status == TaskStatus.SUCCESS
+        assert "def test_x" in result.code
+        assert client.post.call_count == 1
+
+    def test_fallback_to_second_model_on_api_error(self) -> None:
+        from eedom.core.solver import TaskStatus, solve
+
+        client = self._mock_response()
+        resp_fail = MagicMock()
+        resp_fail.text = "error"
+        resp_fail.status_code = 400
+        resp_fail.headers = httpx.Headers({})
+
+        client.post.side_effect = [resp_fail, client.post.return_value]
+        result = solve(self._make_task(), self._make_config(), client=client)
+        assert result.status == TaskStatus.SUCCESS
+        assert result.attempts == 2
+
+    def test_all_models_exhausted_returns_failed(self) -> None:
+        from eedom.core.solver import TaskStatus, solve
+
+        client = MagicMock(spec=httpx.Client)
+        resp = MagicMock()
+        resp.text = "error"
+        resp.status_code = 400
+        resp.headers = httpx.Headers({})
+        client.post.return_value = resp
+
+        result = solve(self._make_task(), self._make_config(), client=client)
+        assert result.status == TaskStatus.FAILED
+        assert "exhausted" in result.error
+
+    def test_empty_api_key_returns_failed(self) -> None:
+        from eedom.core.solver import TaskStatus, solve
+
+        config = self._make_config(api_key="")
+        result = solve(self._make_task(), config)
+        assert result.status == TaskStatus.FAILED
+        assert "api_key" in result.error
+
+    def test_dangerous_code_returns_failed(self) -> None:
+        from eedom.core.solver import TaskStatus, solve
+
+        dangerous = "import os\nos" + ".system('rm -rf /')\ndef test_x(): pass"
+        client = self._mock_response(code=dangerous)
+        result = solve(self._make_task(), self._make_config(), client=client)
+        assert result.status == TaskStatus.FAILED
+        assert len(result.flagged_patterns) > 0
+
+    def test_invalid_python_falls_through(self) -> None:
+        from eedom.core.solver import TaskStatus, solve
+
+        client = self._mock_response(code="This is just prose, not code at all.")
+        result = solve(self._make_task(), self._make_config(), client=client)
+        assert result.status == TaskStatus.FAILED
+
+    def test_timeout_retries(self) -> None:
+        from eedom.core.solver import TaskStatus, solve
+
+        client = self._mock_response()
+        client.post.side_effect = [
+            httpx.TimeoutException("timed out"),
+            client.post.return_value,
+        ]
+        config = self._make_config(
+            max_retries=2,
+            model_ladder=[
+                __import__("eedom.core.solver", fromlist=["ModelSpec"]).ModelSpec(
+                    id="test/model", tier="dense"
+                )
+            ],
+        )
+        with patch("eedom.core.solver.time.sleep"):
+            result = solve(self._make_task(), config, client=client)
+        assert result.status == TaskStatus.SUCCESS
+
+
+class TestSolveBatch:
+    """Tests for solve_batch() — batch orchestration."""
+
+    def _make_task(self, issue: int = 1):
+        from eedom.core.solver import SolverTask
+
+        return SolverTask(issue_number=issue, title="Bug", body="desc")
+
+    def _make_config(self, tmp_path: Path):
+        from eedom.core.solver import ModelSpec, ModelTier, SolverConfig
+
+        return SolverConfig(
+            api_key="sk-test",
+            output_dir=str(tmp_path),
+            request_delay=0.0,
+            max_retries=1,
+            model_ladder=[ModelSpec(id="test/m", tier=ModelTier.DENSE)],
+        )
+
+    def test_on_result_called_per_task(self, tmp_path: Path) -> None:
+        from eedom.core.solver import solve_batch
+
+        callbacks = []
+        config = self._make_config(tmp_path)
+
+        with patch("eedom.core.solver.solve") as mock_solve:
+            from eedom.core.solver import SolverResult, TaskStatus
+
+            mock_solve.return_value = SolverResult(
+                issue_number=1, status=TaskStatus.FAILED, error="test"
+            )
+            solve_batch(
+                [self._make_task(1), self._make_task(2)],
+                config,
+                on_result=callbacks.append,
+            )
+        assert len(callbacks) == 2
+
+    def test_callback_failure_does_not_kill_batch(self, tmp_path: Path) -> None:
+        from eedom.core.solver import solve_batch
+
+        config = self._make_config(tmp_path)
+
+        def bad_callback(r):
+            raise RuntimeError("callback boom")
+
+        with patch("eedom.core.solver.solve") as mock_solve:
+            from eedom.core.solver import SolverResult, TaskStatus
+
+            mock_solve.return_value = SolverResult(
+                issue_number=1, status=TaskStatus.FAILED, error="test"
+            )
+            results = solve_batch(
+                [self._make_task(1), self._make_task(2)],
+                config,
+                on_result=bad_callback,
+            )
+        assert len(results) == 2
+
+    def test_writes_success_results_to_disk(self, tmp_path: Path) -> None:
+        from eedom.core.solver import solve_batch
+
+        config = self._make_config(tmp_path)
+
+        with patch("eedom.core.solver.solve") as mock_solve:
+            from eedom.core.solver import SolverResult, TaskStatus
+
+            mock_solve.return_value = SolverResult(
+                issue_number=42,
+                status=TaskStatus.SUCCESS,
+                code="import pytest\ndef test_x(): pass",
+            )
+            solve_batch([self._make_task(42)], config)
+
+        out_file = tmp_path / "test_detector_42.py"
+        assert out_file.exists()
+        assert "def test_x" in out_file.read_text()

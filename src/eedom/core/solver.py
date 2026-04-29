@@ -6,7 +6,8 @@ builds scoped prompts, sends to OpenRouter-compatible endpoints with rate-limit
 aware sequential processing and model fallback ladder.
 
 All boundary contracts use Pydantic models. LLM output is untrusted input
-and is validated + sanitized before use.
+and is validated + sanitized before use. Flagged dangerous patterns cause
+task FAILURE — detection IS enforcement.
 
 Public interface:
   - SolverConfig     — model ladder, rate limits, endpoint
@@ -18,6 +19,8 @@ Public interface:
 
 from __future__ import annotations
 
+import ast
+import os
 import re
 import time
 from collections.abc import Callable
@@ -25,16 +28,28 @@ from enum import StrEnum
 from pathlib import Path
 
 import httpx
+import orjson
 import structlog
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = structlog.get_logger()
 
 _MAX_CODE_LENGTH = 50_000
 _MAX_FILE_SIZE = 50_000
 _MAX_PROMPT_LENGTH = 200_000
+_MAX_BACKOFF_S = 120.0
+_MAX_RATE_LIMIT_WAIT_S = 300.0
 _DANGEROUS_PATTERNS = re.compile(
-    r"os\.system\(|subprocess\.call\(.*shell=True" r"|__import__\(|exec\(|eval\("
+    r"\bos\.system\("
+    r"|\bsubprocess\.(?:call|run|Popen|check_output|check_call)\(.*shell\s*=\s*True"
+    r"|\b__import__\("
+    r"|\bexec\("
+    r"|\beval\("
+    r"|\bpickle\.(?:load|loads)\("
+    r"|\byaml\.load\("
+    r"|\bshutil\.rmtree\("
+    r"|\bimportlib\.import_module\(",
+    re.DOTALL,
 )
 
 
@@ -69,6 +84,24 @@ DEFAULT_MODEL_LADDER: list[ModelSpec] = [
     ),
 ]
 
+_DEFAULT_SYSTEM_PROMPT = """\
+You are a senior test engineer writing deterministic detection tests for known \
+bugs in a Python codebase called eedom (Eagle Eyed Dom — a CI code review tool).
+
+Your output is ONLY raw Python code. No markdown, no code fences, no explanation.
+Start with imports. End with the last test function.
+
+Conventions you MUST follow:
+- pytest as the test framework
+- structlog for logging (never print)
+- Typed annotations on all functions
+- One test class per detection rule, named Test{BugDescription}
+- Each test must FAIL on the current buggy code (RED phase)
+- Use unittest.mock for isolation, never hit real APIs or filesystem
+- Descriptive test names: test_{what}_{condition}_{expected}
+- Add a module docstring: "Detector test for issue #{number}"
+"""
+
 
 class SolverConfig(BaseModel):
     endpoint: str = Field(default="https://openrouter.ai/api", pattern=r"^https://")
@@ -76,8 +109,13 @@ class SolverConfig(BaseModel):
     model_ladder: list[ModelSpec] = Field(default_factory=lambda: list(DEFAULT_MODEL_LADDER))
     output_dir: str = ".temp/solver-results"
     request_delay: float = Field(default=2.0, ge=0.0)
-    max_retries: int = Field(default=3, ge=1, le=10)
+    max_retries: int = Field(default=3, ge=1, le=5)
     timeout: int = Field(default=120, ge=5, le=600)
+    system_prompt: str = Field(default=_DEFAULT_SYSTEM_PROMPT)
+
+    @model_validator(mode="after")
+    def validate_api_key_when_needed(self) -> SolverConfig:
+        return self
 
 
 class TaskStatus(StrEnum):
@@ -132,24 +170,7 @@ class OpenRouterResponse(BaseModel):
 
 
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
-
-SYSTEM_PROMPT = """\
-You are a senior test engineer writing deterministic detection tests for known \
-bugs in a Python codebase called eedom (Eagle Eyed Dom — a CI code review tool).
-
-Your output is ONLY raw Python code. No markdown, no code fences, no explanation.
-Start with imports. End with the last test function.
-
-Conventions you MUST follow:
-- pytest as the test framework
-- structlog for logging (never print)
-- Typed annotations on all functions
-- One test class per detection rule, named Test{BugDescription}
-- Each test must FAIL on the current buggy code (RED phase)
-- Use unittest.mock for isolation, never hit real APIs or filesystem
-- Descriptive test names: test_{what}_{condition}_{expected}
-- Add a module docstring: "Detector test for issue #{number}"
-"""
+_PYTHON_INDICATORS = ("import ", "def test_", "class Test", "from ", "assert ")
 
 
 def build_prompt(task: SolverTask) -> str:
@@ -198,7 +219,7 @@ def _extract_rate_limit(headers: httpx.Headers) -> float | None:
     try:
         if int(remaining) < 2:
             wait = max(0, int(reset) - int(time.time()))
-            return float(wait + 1)
+            return float(min(wait + 1, _MAX_RATE_LIMIT_WAIT_S))
     except ValueError:
         return None
     return None
@@ -216,6 +237,10 @@ def _sanitize_code(raw: str) -> tuple[str, list[str]]:
     return code, flags
 
 
+def _backoff(retry: int, multiplier: float = 1.0) -> float:
+    return min(2.0**retry * multiplier, _MAX_BACKOFF_S)
+
+
 def _post(
     client: httpx.Client,
     url: str,
@@ -225,7 +250,7 @@ def _post(
     user: str,
     max_tokens: int,
     timeout: int,
-) -> tuple[str, dict]:
+) -> tuple[str, int, httpx.Headers]:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -244,145 +269,207 @@ def _post(
         url,
         json=request.model_dump(),
         headers=headers,
-        timeout=timeout,
+        timeout=httpx.Timeout(timeout, connect=10.0),
     )
-    return resp.text, {
-        "status": resp.status_code,
-        "headers": dict(resp.headers),
-    }
+    return resp.text, resp.status_code, resp.headers
 
 
 def _parse_response(raw: str) -> OpenRouterResponse:
-    import orjson
-
     data = orjson.loads(raw)
     return OpenRouterResponse.model_validate(data)
 
 
-def solve(task: SolverTask, config: SolverConfig) -> SolverResult:
-    """Solve a single task, trying each model in the ladder."""
-    start = time.monotonic()
-    prompt = build_prompt(task)
+def _try_model(
+    client: httpx.Client,
+    model_spec: ModelSpec,
+    prompt: str,
+    config: SolverConfig,
+    issue_number: int,
+) -> tuple[SolverResult | None, int]:
+    """Try a single model with retries. Returns (result, attempts)."""
     url = f"{config.endpoint}/v1/chat/completions"
     attempts = 0
 
-    with httpx.Client() as client:
-        for model_spec in config.model_ladder:
-            for retry in range(config.max_retries):
-                attempts += 1
-                try:
-                    raw, meta = _post(
-                        client=client,
-                        url=url,
-                        api_key=config.api_key,
-                        model=model_spec.id,
-                        system=SYSTEM_PROMPT,
-                        user=prompt,
-                        max_tokens=model_spec.max_output,
-                        timeout=config.timeout,
-                    )
-                except (httpx.TimeoutException, httpx.HTTPError) as exc:
-                    logger.warning(
-                        "solver.request_error",
-                        issue=task.issue_number,
-                        model=model_spec.id,
-                        error=str(exc),
-                        attempt=attempts,
-                    )
-                    time.sleep(2.0**retry)
-                    continue
+    for retry in range(config.max_retries):
+        attempts += 1
+        try:
+            raw, status_code, resp_headers = _post(
+                client=client,
+                url=url,
+                api_key=config.api_key,
+                model=model_spec.id,
+                system=config.system_prompt,
+                user=prompt,
+                max_tokens=model_spec.max_output,
+                timeout=config.timeout,
+            )
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "solver.request_error",
+                issue=issue_number,
+                model=model_spec.id,
+                error=str(exc),
+                attempt=attempts,
+            )
+            if retry < config.max_retries - 1:
+                time.sleep(_backoff(retry))
+            continue
 
-                status_code = meta["status"]
+        if status_code == 429:
+            wait = _extract_rate_limit(resp_headers) or _backoff(retry, multiplier=5.0)
+            logger.warning(
+                "solver.rate_limited",
+                issue=issue_number,
+                model=model_spec.id,
+                wait_s=wait,
+            )
+            if retry < config.max_retries - 1:
+                time.sleep(wait)
+            continue
 
-                if status_code == 429:
-                    wait = _extract_rate_limit(httpx.Headers(meta["headers"])) or (2.0**retry * 5)
-                    logger.warning(
-                        "solver.rate_limited",
-                        issue=task.issue_number,
-                        model=model_spec.id,
-                        wait_s=wait,
-                    )
-                    time.sleep(wait)
-                    continue
+        if status_code in _RETRYABLE_STATUS:
+            logger.warning(
+                "solver.retryable",
+                issue=issue_number,
+                model=model_spec.id,
+                status=status_code,
+                attempt=attempts,
+            )
+            if retry < config.max_retries - 1:
+                time.sleep(_backoff(retry))
+            continue
 
-                if status_code in _RETRYABLE_STATUS:
-                    logger.warning(
-                        "solver.retryable",
-                        issue=task.issue_number,
-                        model=model_spec.id,
-                        status=status_code,
-                        attempt=attempts,
-                    )
-                    time.sleep(2.0**retry)
-                    continue
+        if status_code != 200:
+            logger.warning(
+                "solver.api_error",
+                issue=issue_number,
+                model=model_spec.id,
+                status=status_code,
+            )
+            return None, attempts
 
-                if status_code != 200:
-                    logger.warning(
-                        "solver.api_error",
-                        issue=task.issue_number,
-                        model=model_spec.id,
-                        status=status_code,
-                        body=raw[:200],
-                    )
-                    break
+        try:
+            response = _parse_response(raw)
+            raw_code = response.choices[0].message.get("content", "")
+        except (orjson.JSONDecodeError, KeyError, IndexError) as exc:
+            logger.warning(
+                "solver.parse_error",
+                issue=issue_number,
+                model=model_spec.id,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+            if retry < config.max_retries - 1:
+                time.sleep(_backoff(retry))
+            continue
+        except Exception as exc:
+            logger.warning(
+                "solver.parse_error_unexpected",
+                issue=issue_number,
+                model=model_spec.id,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+            return None, attempts
 
-                try:
-                    response = _parse_response(raw)
-                    raw_code = response.choices[0].message.get("content", "")
-                except Exception as exc:
-                    logger.warning(
-                        "solver.parse_error",
-                        issue=task.issue_number,
-                        model=model_spec.id,
-                        error=str(exc),
-                    )
-                    break
+        code, flags = _sanitize_code(raw_code)
 
-                code, flags = _sanitize_code(raw_code)
-                if not _looks_like_python(code):
-                    logger.warning(
-                        "solver.invalid_output",
-                        issue=task.issue_number,
-                        model=model_spec.id,
-                        preview=code[:100],
-                    )
-                    break
-
-                if flags:
-                    logger.warning(
-                        "solver.dangerous_patterns",
-                        issue=task.issue_number,
-                        model=model_spec.id,
-                        flags=flags,
-                    )
-
-                duration = time.monotonic() - start
-                logger.info(
-                    "solver.success",
-                    issue=task.issue_number,
-                    model=model_spec.id,
-                    code_lines=code.count("\n") + 1,
-                    duration_s=round(duration, 1),
-                    flagged=len(flags),
-                )
-                return SolverResult(
-                    issue_number=task.issue_number,
-                    status=TaskStatus.SUCCESS,
+        if flags:
+            logger.warning(
+                "solver.dangerous_patterns_blocked",
+                issue=issue_number,
+                model=model_spec.id,
+                flags=flags,
+            )
+            return (
+                SolverResult(
+                    issue_number=issue_number,
+                    status=TaskStatus.FAILED,
                     model_used=model_spec.id,
-                    code=code,
+                    error=f"Dangerous patterns detected: {flags}",
                     attempts=attempts,
-                    duration_s=round(duration, 1),
                     flagged_patterns=flags,
-                )
+                ),
+                attempts,
+            )
+
+        if not _looks_like_python(code):
+            logger.warning(
+                "solver.invalid_output",
+                issue=issue_number,
+                model=model_spec.id,
+                preview=code[:100],
+            )
+            return None, attempts
+
+        return (
+            SolverResult(
+                issue_number=issue_number,
+                status=TaskStatus.SUCCESS,
+                model_used=model_spec.id,
+                code=code,
+                attempts=attempts,
+            ),
+            attempts,
+        )
+
+    return None, attempts
+
+
+def solve(
+    task: SolverTask,
+    config: SolverConfig,
+    client: httpx.Client | None = None,
+) -> SolverResult:
+    """Solve a single task, trying each model in the ladder."""
+    if not config.api_key:
+        return SolverResult(
+            issue_number=task.issue_number,
+            status=TaskStatus.FAILED,
+            error="api_key is empty",
+        )
+
+    start = time.monotonic()
+    prompt = build_prompt(task)
+    total_attempts = 0
+    owns_client = client is None
+
+    if owns_client:
+        client = httpx.Client()
+
+    try:
+        for model_spec in config.model_ladder:
+            result, attempts = _try_model(client, model_spec, prompt, config, task.issue_number)
+            total_attempts += attempts
+
+            if result is not None:
+                result.attempts = total_attempts
+                result.duration_s = round(time.monotonic() - start, 1)
+                if result.status == TaskStatus.SUCCESS:
+                    logger.info(
+                        "solver.success",
+                        issue=task.issue_number,
+                        model=result.model_used,
+                        code_lines=result.code.count("\n") + 1,
+                        duration_s=result.duration_s,
+                    )
+                return result
+    finally:
+        if owns_client:
+            client.close()
 
     duration = time.monotonic() - start
     return SolverResult(
         issue_number=task.issue_number,
         status=TaskStatus.FAILED,
         error="All models exhausted",
-        attempts=attempts,
+        attempts=total_attempts,
         duration_s=round(duration, 1),
     )
+
+
+def _atomic_write(path: Path, content: str) -> None:
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(content, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def solve_batch(
@@ -398,27 +485,42 @@ def solve_batch(
     out_dir = Path(config.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    for i, task in enumerate(tasks):
-        logger.info(
-            "solver.batch_progress",
-            current=i + 1,
-            total=len(tasks),
-            issue=task.issue_number,
-        )
+    with httpx.Client() as client:
+        for i, task in enumerate(tasks):
+            logger.info(
+                "solver.batch_progress",
+                current=i + 1,
+                total=len(tasks),
+                issue=task.issue_number,
+            )
 
-        result = solve(task, config)
-        results.append(result)
+            result = solve(task, config, client=client)
+            results.append(result)
 
-        if result.status == TaskStatus.SUCCESS:
-            out_path = out_dir / f"test_detector_{task.issue_number}.py"
-            out_path.write_text(result.code)
-            logger.info("solver.wrote_file", path=str(out_path))
+            if result.status == TaskStatus.SUCCESS:
+                out_path = out_dir / f"test_detector_{task.issue_number}.py"
+                try:
+                    _atomic_write(out_path, result.code)
+                    logger.info("solver.wrote_file", path=str(out_path))
+                except OSError as exc:
+                    logger.warning(
+                        "solver.write_failed",
+                        path=str(out_path),
+                        error=str(exc),
+                    )
 
-        if on_result is not None:
-            on_result(result)
+            if on_result is not None:
+                try:
+                    on_result(result)
+                except Exception as exc:
+                    logger.warning(
+                        "solver.callback_error",
+                        issue=task.issue_number,
+                        error=str(exc),
+                    )
 
-        if i < len(tasks) - 1:
-            time.sleep(config.request_delay)
+            if i < len(tasks) - 1:
+                time.sleep(config.request_delay)
 
     succeeded = sum(1 for r in results if r.status == TaskStatus.SUCCESS)
     failed = sum(1 for r in results if r.status == TaskStatus.FAILED)
@@ -434,9 +536,13 @@ def solve_batch(
 
 def _clean_code(raw: str) -> str:
     lines = raw.strip().split("\n")
-    if lines and lines[0].startswith("```"):
-        lines = lines[1:]
-    if lines and lines[-1].strip() == "```":
+    start = 0
+    for i, line in enumerate(lines):
+        if line.strip().startswith("```"):
+            start = i + 1
+            break
+    lines = lines[start:]
+    if lines and lines[-1].strip().startswith("```"):
         lines = lines[:-1]
     return "\n".join(lines).strip()
 
@@ -444,5 +550,10 @@ def _clean_code(raw: str) -> str:
 def _looks_like_python(code: str) -> bool:
     if not code:
         return False
-    indicators = ["import ", "def test_", "class Test", "from ", "assert "]
-    return any(indicator in code for indicator in indicators)
+    if not any(indicator in code for indicator in _PYTHON_INDICATORS):
+        return False
+    try:
+        ast.parse(code)
+        return True
+    except SyntaxError:
+        return False
