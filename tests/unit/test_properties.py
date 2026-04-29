@@ -14,8 +14,6 @@ from hypothesis import strategies as st
 from eedom.core.diff import _parse_requirements
 from eedom.core.memo import _MAX_MEMO_LENGTH, generate_memo
 from eedom.core.models import (
-    ReviewDecision,
-    ReviewRequest,
     DecisionVerdict,
     Finding,
     FindingCategory,
@@ -23,6 +21,8 @@ from eedom.core.models import (
     OperatingMode,
     PolicyEvaluation,
     RequestType,
+    ReviewDecision,
+    ReviewRequest,
     ScanResult,
     ScanResultStatus,
 )

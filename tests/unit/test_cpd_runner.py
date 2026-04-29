@@ -49,11 +49,11 @@ def test_run_cpd_parses_xml_with_stdout_preamble(mock_run) -> None:
     mock_run.return_value.returncode = 0
     mock_run.return_value.stdout = (
         "PMD CPD started\n"
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<pmd-cpd xmlns=\"https://pmd-code.org/schema/cpd-report\">\n"
-        "  <duplication lines=\"10\" tokens=\"80\">\n"
-        "    <file line=\"1\" endline=\"10\" path=\"/repo/a.py\"/>\n"
-        "    <file line=\"20\" endline=\"29\" path=\"/repo/b.py\"/>\n"
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<pmd-cpd xmlns="https://pmd-code.org/schema/cpd-report">\n'
+        '  <duplication lines="10" tokens="80">\n'
+        '    <file line="1" endline="10" path="/repo/a.py"/>\n'
+        '    <file line="20" endline="29" path="/repo/b.py"/>\n'
         "  </duplication>\n"
         "</pmd-cpd>\n"
     )

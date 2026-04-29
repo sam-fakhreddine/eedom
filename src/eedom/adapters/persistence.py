@@ -57,13 +57,13 @@ class FileEvidenceStore:
         return str(target)
 
 
-assert isinstance(NullDecisionStore(), DecisionStorePort), (
-    "NullDecisionStore must satisfy DecisionStorePort"
-)
-assert isinstance(NullEvidenceStore(), EvidenceStorePort), (
-    "NullEvidenceStore must satisfy EvidenceStorePort"
-)
+assert isinstance(
+    NullDecisionStore(), DecisionStorePort
+), "NullDecisionStore must satisfy DecisionStorePort"
+assert isinstance(
+    NullEvidenceStore(), EvidenceStorePort
+), "NullEvidenceStore must satisfy EvidenceStorePort"
 assert isinstance(NullAuditSink(), AuditSinkPort), "NullAuditSink must satisfy AuditSinkPort"
-assert isinstance(FileEvidenceStore(Path(".")), EvidenceStorePort), (
-    "FileEvidenceStore must satisfy EvidenceStorePort"
-)
+assert isinstance(
+    FileEvidenceStore(Path(".")), EvidenceStorePort
+), "FileEvidenceStore must satisfy EvidenceStorePort"

@@ -85,6 +85,6 @@ class NullPublisher:
         return True
 
 
-assert isinstance(GitHubPublisher(), PullRequestPublisherPort), (
-    "GitHubPublisher must satisfy PullRequestPublisherPort"
-)
+assert isinstance(
+    GitHubPublisher(), PullRequestPublisherPort
+), "GitHubPublisher must satisfy PullRequestPublisherPort"

@@ -57,9 +57,7 @@ class TestReviewPipelineNoDependencyChanges:
             diff_text=DIFF_NO_DEPS,
             pr_url="https://github.com/org/repo/pull/1",
             team="platform",
-            mode=__import__(
-                "eedom.core.models", fromlist=["OperatingMode"]
-            ).OperatingMode.monitor,
+            mode=__import__("eedom.core.models", fromlist=["OperatingMode"]).OperatingMode.monitor,
             repo_path=tmp_path,
         )
 

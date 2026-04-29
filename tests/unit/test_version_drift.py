@@ -28,9 +28,8 @@ def test_get_version_is_importable():
 
 def test_renderer_version_matches_canonical():
     """renderer._VERSION must equal get_version() — no local override allowed."""
-    from eedom.core.version import get_version
-
     import eedom.core.renderer as renderer
+    from eedom.core.version import get_version
 
     canonical = get_version()
     assert canonical == renderer._VERSION, (
@@ -47,10 +46,9 @@ def test_renderer_version_matches_canonical():
 
 def test_sarif_tool_driver_version_matches_canonical():
     """SARIF tool driver must embed get_version() as the driver version."""
-    from eedom.core.version import get_version
-
     from eedom.core.plugin import PluginResult
     from eedom.core.sarif import to_sarif
+    from eedom.core.version import get_version
 
     result = PluginResult(plugin_name="test-plugin", findings=[])
     doc = to_sarif([result])

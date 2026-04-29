@@ -12,6 +12,8 @@ HrEaFzpGJIkVOEaj5GCMq1Gvfu0yb8K7hLmFo9fKLFTO3VQzOgaK4M3d3cJg5OX2
 
 # --- semgrep: dangerous subprocess with shell=True ---
 import subprocess
+
+
 def run_command(cmd: str) -> str:
     return subprocess.check_output(cmd, shell=True, text=True)
 

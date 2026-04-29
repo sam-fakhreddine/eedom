@@ -12,6 +12,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+
 from eedom.core.nl_query import (
     TEMPLATES,
     QueryTemplate,
@@ -20,7 +21,6 @@ from eedom.core.nl_query import (
     _score,
     query_code,
 )
-
 from eedom.plugins._runners.graph_builder import CodeGraph
 
 # ---------------------------------------------------------------------------
