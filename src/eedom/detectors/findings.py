@@ -3,6 +3,7 @@
 
 Defines the DetectorFinding model and conversion to core Finding model.
 """
+
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, field_validator

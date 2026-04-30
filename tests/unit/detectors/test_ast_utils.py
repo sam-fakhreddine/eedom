@@ -3,6 +3,7 @@
 
 RED phase tests for Task 1.3: AST Utilities.
 """
+
 from __future__ import annotations
 
 import ast
@@ -41,7 +42,7 @@ class TestParseFileSafe:
 
     def test_parses_valid_python(self):
         """parse_file_safe returns AST for valid Python file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("x = 1\n")
             f.flush()
 
@@ -51,7 +52,7 @@ class TestParseFileSafe:
 
     def test_returns_none_for_invalid_python(self):
         """parse_file_safe returns None for invalid Python syntax."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("invalid syntax {{{\n")
             f.flush()
 
@@ -429,7 +430,7 @@ class TestASTCache:
         """ASTCache stores and returns cached AST."""
         cache = ASTCache(maxsize=100)
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("x = 1\n")
             f.flush()
             path = Path(f.name)
@@ -447,7 +448,7 @@ class TestASTCache:
 
         # Create and parse 3 files
         for i in range(3):
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
                 f.write(f"x = {i}\n")
                 f.flush()
                 cache.get_or_parse(Path(f.name))
@@ -459,7 +460,7 @@ class TestASTCache:
         """ASTCache returns None for files with invalid syntax."""
         cache = ASTCache()
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("invalid syntax {{{\n")
             f.flush()
             result = cache.get_or_parse(Path(f.name))

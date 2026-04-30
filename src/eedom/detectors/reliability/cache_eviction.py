@@ -3,6 +3,7 @@
 
 GitHub issues: #166, #167
 """
+
 from __future__ import annotations
 
 import ast

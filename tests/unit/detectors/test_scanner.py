@@ -3,6 +3,7 @@
 
 RED phase tests for Task 1.5: DeterministicScanner Integration.
 """
+
 from __future__ import annotations
 
 import tempfile

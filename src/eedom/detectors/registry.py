@@ -4,6 +4,7 @@
 Provides auto-discovery, registration, and lookup of bug detectors
 with thread-safe operations for parallel orchestrator execution (VAL-M1).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -80,9 +81,7 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
             # We need to create a temporary instance to get the ID
             try:
                 # Try to get detector_id from class property
-                detector_id = detector_class.detector_id.fget(  # type: ignore
-                    None
-                )
+                detector_id = detector_class.detector_id.fget(None)  # type: ignore
             except (AttributeError, TypeError):
                 # Fallback: create temp instance to get ID
                 try:
@@ -187,9 +186,7 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
             return instances
 
     @classmethod
-    def get_by_category(
-        cls, category: DetectorCategory
-    ) -> list[BugDetector]:
+    def get_by_category(cls, category: DetectorCategory) -> list[BugDetector]:
         """Get detectors filtered by category.
 
         Args:
@@ -202,9 +199,7 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
         return [d for d in all_detectors if d.category == category]
 
     @classmethod
-    def get_by_severity(
-        cls, severity: FindingSeverity
-    ) -> list[BugDetector]:
+    def get_by_severity(cls, severity: FindingSeverity) -> list[BugDetector]:
         """Get detectors filtered by severity.
 
         Args:

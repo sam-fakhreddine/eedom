@@ -6,6 +6,7 @@ static analysis. Integrates with ScanOrchestrator via Scanner protocol.
 
 Per ADR-DET-006: Integrated into 'review' command, not separate 'detect'.
 """
+
 from __future__ import annotations
 
 import time

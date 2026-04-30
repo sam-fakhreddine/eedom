@@ -3,6 +3,7 @@
 
 RED phase tests for Task 1.4: Detector Registry.
 """
+
 from __future__ import annotations
 
 import threading
@@ -249,9 +250,7 @@ class TestDetectorRegistryLookup:
         assert len(security_detectors) == 1
         assert security_detectors[0].detector_id == "EED-TEST-001"
 
-        reliability_detectors = DetectorRegistry.get_by_category(
-            DetectorCategory.reliability
-        )
+        reliability_detectors = DetectorRegistry.get_by_category(DetectorCategory.reliability)
         assert len(reliability_detectors) == 1
         assert reliability_detectors[0].detector_id == "EED-TEST-002"
 

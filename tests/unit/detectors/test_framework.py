@@ -4,6 +4,7 @@
 RED phase tests for Task 1.2: Base Framework Classes.
 These tests import from eedom.detectors which doesn't exist yet.
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -33,6 +34,7 @@ class TestBugDetectorAbstract:
 
     def test_subclass_must_implement_detector_id(self):
         """Subclasses must implement detector_id property."""
+
         class IncompleteDetector(BugDetector):
             @property
             def name(self) -> str:
@@ -54,6 +56,7 @@ class TestBugDetectorAbstract:
 
     def test_subclass_must_implement_name(self):
         """Subclasses must implement name property."""
+
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -75,6 +78,7 @@ class TestBugDetectorAbstract:
 
     def test_subclass_must_implement_category(self):
         """Subclasses must implement category property."""
+
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -96,6 +100,7 @@ class TestBugDetectorAbstract:
 
     def test_subclass_must_implement_severity(self):
         """Subclasses must implement severity property."""
+
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -117,6 +122,7 @@ class TestBugDetectorAbstract:
 
     def test_subclass_must_implement_detect(self):
         """Subclasses must implement detect method."""
+
         class IncompleteDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -144,6 +150,7 @@ class TestBugDetectorContract:
     @pytest.fixture
     def valid_detector(self):
         """Create a minimal valid detector implementation."""
+
         class ValidTestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -206,7 +213,7 @@ class TestBugDetectorContract:
 
     def test_detect_returns_list(self, valid_detector):
         """detect returns a list (possibly empty)."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("# test file\n")
             f.flush()
             result = valid_detector.detect(Path(f.name))
@@ -219,7 +226,7 @@ class TestBugDetectorContract:
         assert result == []
 
         # Test with file with invalid Python syntax
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("invalid syntax {{\n")
             f.flush()
             result = valid_detector.detect(Path(f.name))
@@ -231,6 +238,7 @@ class TestBugDetectorTargetFiles:
 
     def test_can_override_target_files(self):
         """Subclasses can override target_files."""
+
         class YamlDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -250,13 +258,13 @@ class TestBugDetectorTargetFiles:
 
             @property
             def target_files(self) -> tuple[str, ...]:
-                return ('*.yaml', '*.yml')
+                return ("*.yaml", "*.yml")
 
             def detect(self, file_path: Path) -> list[DetectorFinding]:
                 return []
 
         detector = YamlDetector()
-        assert detector.target_files == ('*.yaml', '*.yml')
+        assert detector.target_files == ("*.yaml", "*.yml")
         assert detector.is_applicable(Path("config.yaml")) is True
         assert detector.is_applicable(Path("config.yml")) is True
         assert detector.is_applicable(Path("config.py")) is False
@@ -418,6 +426,7 @@ class TestDetectorFindingConversion:
     def test_to_finding_returns_finding(self, detector_finding):
         """to_finding() returns a Finding instance."""
         from eedom.core.models import Finding
+
         finding = detector_finding.to_finding()
         assert isinstance(finding, Finding)
 
@@ -462,6 +471,7 @@ class TestBugDetectorSuppression:
 
     def test_is_suppressed_detects_noqa_comment(self):
         """BugDetector can detect # noqa: EED-XXX comments."""
+
         class TestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -485,7 +495,7 @@ class TestBugDetectorSuppression:
         detector = TestDetector()
 
         # Create file with noqa comment
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("# Line 1\n")
             f.write("jwt.encode({})  # noqa: EED-TEST\n")
             f.flush()
@@ -496,6 +506,7 @@ class TestBugDetectorSuppression:
 
     def test_is_suppressed_returns_false_without_noqa(self):
         """is_suppressed returns False when no noqa comment present."""
+
         class TestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -519,7 +530,7 @@ class TestBugDetectorSuppression:
         detector = TestDetector()
 
         # Create file without noqa comment
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("jwt.encode({})\n")
             f.flush()
 
@@ -528,6 +539,7 @@ class TestBugDetectorSuppression:
 
     def test_is_suppressed_specific_detector_id(self):
         """Suppression is specific to detector ID."""
+
         class TestDetector(BugDetector):
             @property
             def detector_id(self) -> str:
@@ -550,7 +562,7 @@ class TestBugDetectorSuppression:
 
         detector = TestDetector()
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("jwt.encode({})  # noqa: EED-002\n")  # Different detector
             f.flush()
 

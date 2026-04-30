@@ -1,6 +1,7 @@
 """Tests for Tested-By Annotation detector.
 # tested-by: tests/unit/detectors/process/test_tested_by.py
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -23,7 +24,7 @@ class TestTestedByAnnotationDetector:
         code = """def foo():
     pass
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -39,7 +40,7 @@ class TestTestedByAnnotationDetector:
 def foo():
     pass
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
             # Create the test file

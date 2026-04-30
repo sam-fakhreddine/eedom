@@ -4,6 +4,7 @@
 Provides the abstract BugDetector base class that all bug detectors must
 inherit from, including suppression support (# noqa: EED-XXX pattern).
 """
+
 from __future__ import annotations
 
 import abc

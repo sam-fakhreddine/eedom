@@ -1,6 +1,7 @@
 """Tests for JWT Audience detector.
 # tested-by: tests/unit/detectors/security/test_jwt_audience.py
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -24,7 +25,7 @@ class TestJWTAudienceDetector:
 import jwt
 token = jwt.encode({"user": "alice"}, "secret", algorithm="HS256")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -40,7 +41,7 @@ token = jwt.encode({"user": "alice"}, "secret", algorithm="HS256")
 import jwt
 token = jwt.encode({"user": "alice", "aud": "my-api"}, "secret", algorithm="HS256")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -55,7 +56,7 @@ import jwt
 payload = {"user": "alice"}
 token = jwt.encode(payload, "secret", algorithm="HS256")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -71,7 +72,7 @@ import jwt
 token1 = jwt.encode({"user": "alice"}, "secret", algorithm="HS256")
 token2 = jwt.encode({"user": "bob"}, "secret", algorithm="HS256")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -86,7 +87,7 @@ import jwt
 token = jwt.encode({"user": "alice"}, "secret", algorithm="HS256")
 y = 2
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
