@@ -168,6 +168,7 @@ def test_workflow_policy_runs_read_only_policy_checks() -> None:
 
     run_text = _run_text(workflow)
     assert "tests/unit/test_github_actions_policy.py" in run_text
+    assert "tests/unit/test_copilot_agent_profiles.py" in run_text
     assert "tests/unit/test_dependabot_policy.py" in run_text
     assert "tests/unit/test_ruff_policy.py" in run_text
     assert "docker.io/library/python@sha256:" in run_text
@@ -382,11 +383,12 @@ def test_daily_release_candidate_runs_full_e2e_and_creates_prerelease() -> None:
     assert "Release candidate blocked by Dom review" in run_text
     assert "uv build" in run_text
     assert 'gh release create "$TAG_NAME"' in run_text
+    assert ".release-candidate/dist/*.whl" in run_text
+    assert ".release-candidate/dist/*.tar.gz" in run_text
+    assert ".release-candidate/.temp/release-review.sarif" in run_text
+    assert ".release-candidate/.temp/release-review.md" in run_text
     assert "--prerelease" in run_text
-    assert (
-        'gh release upload "$TAG_NAME" .release-candidate/dist/*.whl '
-        ".release-candidate/dist/*.tar.gz --clobber"
-    ) in run_text
+    assert "gh release upload" not in publish_run_text
 
     metadata_step = next(
         step
@@ -417,6 +419,35 @@ def test_daily_release_candidate_runs_full_e2e_and_creates_prerelease() -> None:
     assert create_env.get("TAG_NAME") == "${{ needs.release_candidate.outputs.tag_name }}"
 
 
+def test_release_please_is_compatible_with_immutable_releases() -> None:
+    workflow = _load_yaml(_WORKFLOWS / "release-please.yml")
+    jobs = _as_mapping(workflow.get("jobs"))
+    publish = _as_mapping(jobs.get("publish"))
+
+    step_names = {
+        step.get("name") for step in _job_steps(publish) if isinstance(step.get("name"), str)
+    }
+    assert "Generate SBOM" in step_names
+    assert "Upload stable release artifacts" in step_names
+    assert "Upload to release" not in step_names
+
+    publish_run = _job_run_text(publish)
+    assert "gh release upload" not in publish_run
+    assert "cyclonedx-py environment -o sbom.cdx.json --of json" in publish_run
+
+    artifact_step = next(
+        step
+        for step in _job_steps(publish)
+        if step.get("name") == "Upload stable release artifacts"
+    )
+    artifact_with = _as_mapping(artifact_step.get("with"))
+    assert (
+        artifact_with.get("name") == "stable-release-${{ needs.release-please.outputs.tag_name }}"
+    )
+    assert "dist/*" in str(artifact_with.get("path", ""))
+    assert "sbom.cdx.json" in str(artifact_with.get("path", ""))
+
+
 def test_pull_request_target_workflows_do_not_checkout_or_execute_pr_head() -> None:
     for path in _workflow_paths():
         workflow = _load_yaml(path)
@@ -444,8 +475,10 @@ def test_policy_artifacts_are_codeowned_and_documented() -> None:
 
     codeowners = _CODEOWNERS.read_text(encoding="utf-8")
     required_paths = [
+        ".github/agents/",
         ".github/actions-allowlist.yml",
         ".github/workflows/workflow-policy.yml",
+        "tests/unit/test_copilot_agent_profiles.py",
         "tests/unit/test_github_actions_policy.py",
         "tests/unit/test_dependabot_policy.py",
         "tests/unit/test_ruff_policy.py",

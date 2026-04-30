@@ -12,8 +12,10 @@ policies/ @samfakhreddine
 action.yml @samfakhreddine
 
 # Workflow policy guardrails
+.github/agents/ @samfakhreddine
 .github/actions-allowlist.yml @samfakhreddine
 .github/workflows/workflow-policy.yml @samfakhreddine
+tests/unit/test_copilot_agent_profiles.py @samfakhreddine
 tests/unit/test_github_actions_policy.py @samfakhreddine
 tests/unit/test_dependabot_policy.py @samfakhreddine
 tests/unit/test_ruff_policy.py @samfakhreddine
