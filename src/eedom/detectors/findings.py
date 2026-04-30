@@ -5,9 +5,7 @@ Defines the DetectorFinding model and conversion to core Finding model.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from eedom.core.models import Finding, FindingCategory, FindingSeverity
 from eedom.detectors.categories import CATEGORY_TO_FINDING, DetectorCategory

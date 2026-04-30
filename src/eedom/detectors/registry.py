@@ -12,11 +12,9 @@ import threading
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
 
     from eedom.core.models import FindingSeverity
     from eedom.detectors.categories import DetectorCategory
-    from eedom.detectors.findings import DetectorFinding
 
 
 class _DetectorRegistryMeta(type):
@@ -63,7 +61,7 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
     """
 
     _detectors: dict[str, type] = {}
-    _instances: dict[str, "BugDetector"] = {}
+    _instances: dict[str, BugDetector] = {}
     _lock: threading.Lock = threading.Lock()
     _discovered: bool = False
 
@@ -138,7 +136,7 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
             cls._discovered = True
 
     @classmethod
-    def get_detector(cls, detector_id: str) -> "BugDetector | None":
+    def get_detector(cls, detector_id: str) -> BugDetector | None:
         """Get detector instance by ID.
 
         Args:
@@ -165,7 +163,7 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
                 return None
 
     @classmethod
-    def get_all_detectors(cls) -> list["BugDetector"]:
+    def get_all_detectors(cls) -> list[BugDetector]:
         """Get all registered detector instances.
 
         Returns:
@@ -190,8 +188,8 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
 
     @classmethod
     def get_by_category(
-        cls, category: "DetectorCategory"
-    ) -> list["BugDetector"]:
+        cls, category: DetectorCategory
+    ) -> list[BugDetector]:
         """Get detectors filtered by category.
 
         Args:
@@ -205,8 +203,8 @@ class DetectorRegistry(metaclass=_DetectorRegistryMeta):
 
     @classmethod
     def get_by_severity(
-        cls, severity: "FindingSeverity"
-    ) -> list["BugDetector"]:
+        cls, severity: FindingSeverity
+    ) -> list[BugDetector]:
         """Get detectors filtered by severity.
 
         Args:

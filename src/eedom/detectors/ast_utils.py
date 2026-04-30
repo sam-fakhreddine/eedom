@@ -11,9 +11,8 @@ import fnmatch
 import hashlib
 import re
 from collections import OrderedDict
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
-
 
 # =============================================================================
 # AST Cache (ADR-DET-007)
@@ -51,7 +50,7 @@ class ASTCache:
             content = file_path.read_bytes()
             content_hash = hashlib.md5(content).hexdigest()  # noqa: S324
             return f"{file_path}:{content_hash}"
-        except (OSError, IOError):
+        except OSError:
             return None
 
     def get_or_parse(self, file_path: Path) -> ast.Module | None:
@@ -104,7 +103,7 @@ def parse_file_safe(file_path: Path) -> ast.Module | None:
     try:
         content = file_path.read_text(encoding="utf-8")
         return ast.parse(content)
-    except (OSError, IOError, SyntaxError):
+    except (OSError, SyntaxError):
         return None
 
 
@@ -278,7 +277,7 @@ def find_assignments(
                 ):
                     results.append(node)
         elif isinstance(node, ast.AnnAssign):
-            if isinstance(node.target, ast.Name) and matches_pattern(
+            if isinstance(node.target, ast.Name) and matches_pattern(  # noqa: SIM102
                 node.target.id, var_pattern
             ):
                 results.append(node)
@@ -353,7 +352,7 @@ def has_import(tree: ast.AST, module_pattern: str) -> bool:
                 if matches_pattern(alias.name, module_pattern):
                     return True
         elif isinstance(node, ast.ImportFrom):
-            if node.module and matches_pattern(node.module, module_pattern):
+            if node.module and matches_pattern(node.module, module_pattern):  # noqa: SIM102
                 return True
     return False
 
@@ -588,7 +587,6 @@ def is_secret_field_name(name: str) -> bool:
     Returns:
         True if name suggests secret-related usage
     """
-    import re
 
     secret_patterns = [
         r"api[_-]?key",

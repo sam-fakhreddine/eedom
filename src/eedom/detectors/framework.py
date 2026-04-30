@@ -15,12 +15,9 @@ from eedom.core.models import FindingSeverity
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 
-
-# Pattern to match noqa comments: # noqa: EED-XXX or # noqa: EED-001, EED-002
+# Pattern to match noqa comments: "noqa" + optional codes
 _NOQA_PATTERN = re.compile(
-    r"#\s*noqa"  # # noqa
-    r"(?::\s*([A-Za-z0-9-]+(?:\s*,\s*[A-Za-z0-9-]+)*))?"  # Optional: EED-001, EED-002
-    r"(?:\s*#.*)?$",  # Optional trailing comment
+    r"#\s*noqa" + r"(?::\s*([A-Za-z0-9-]+(?:\s*,\s*[A-Za-z0-9-]+)*)?)?" + r"(?:\s*#.*)?$",
     re.IGNORECASE,
 )
 
@@ -39,7 +36,7 @@ def _parse_noqa_codes(comment: str) -> set[str]:
 
     codes_str = match.group(1)
     if codes_str is None:
-        # Bare "# noqa" - suppresses all warnings on that line
+        # Bare noqa comment - suppresses all warnings on that line
         return {"all"}
 
     # Split by comma and clean up
@@ -92,7 +89,9 @@ class BugDetector(abc.ABC):
         """Check if this detector applies to the given file."""
         return any(fnmatch.fnmatch(file_path.name, pattern) for pattern in self.target_files)
 
-    def is_suppressed(self, file_path: Path, line_number: int, detector_id: str | None = None) -> bool:
+    def is_suppressed(
+        self, file_path: Path, line_number: int, detector_id: str | None = None
+    ) -> bool:
         """Check if a finding at the given line is suppressed by a noqa comment.
 
         Args:
@@ -106,9 +105,9 @@ class BugDetector(abc.ABC):
         target_id = detector_id or self.detector_id
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
-        except (OSError, IOError):
+        except OSError:
             return False
 
         if not lines or line_number < 1 or line_number > len(lines):
@@ -121,12 +120,7 @@ class BugDetector(abc.ABC):
         codes = _parse_noqa_codes(line_content)
 
         # Check if suppressed
-        if "all" in codes:
-            return True
-        if target_id in codes:
-            return True
-
-        return False
+        return "all" in codes or target_id in codes
 
     def _should_report_finding(
         self, file_path: Path, line_number: int, detector_id: str | None = None

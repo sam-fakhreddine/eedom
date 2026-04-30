@@ -8,13 +8,11 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
+from eedom.core.models import FindingCategory, FindingSeverity, ScanResult
+from eedom.data.scanners.base import Scanner
 
 # These imports will fail during RED phase
 from eedom.detectors.scanner import DeterministicScanner
-from eedom.data.scanners.base import Scanner
-from eedom.core.models import ScanResult, FindingSeverity, FindingCategory
-
 
 # =============================================================================
 # Scanner Protocol Tests

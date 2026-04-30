@@ -9,7 +9,6 @@ import ast
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
-from eedom.detectors.ast_utils import has_decorator
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
