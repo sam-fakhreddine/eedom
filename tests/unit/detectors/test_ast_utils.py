@@ -9,30 +9,27 @@ import ast
 import tempfile
 from pathlib import Path
 
-import pytest
-
 # These imports will fail during RED phase
 from eedom.detectors.ast_utils import (
-    parse_file_safe,
-    find_function_calls,
-    has_function_call,
-    get_call_name,
-    has_decorator,
-    get_decorators,
-    find_assignments,
-    get_annotation_text,
-    is_plain_type,
-    has_import,
-    get_import_aliases,
-    contains_string_formatting,
-    matches_pattern,
-    is_path_related_name,
-    is_secret_field_name,
-    is_cache_related_name,
-    BatchVisitor,
     ASTCache,
+    BatchVisitor,
+    contains_string_formatting,
+    find_assignments,
+    find_function_calls,
+    get_annotation_text,
+    get_call_name,
+    get_decorators,
+    get_import_aliases,
+    has_decorator,
+    has_function_call,
+    has_import,
+    is_cache_related_name,
+    is_path_related_name,
+    is_plain_type,
+    is_secret_field_name,
+    matches_pattern,
+    parse_file_safe,
 )
-
 
 # =============================================================================
 # parse_file_safe Tests

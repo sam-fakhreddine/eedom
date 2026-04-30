@@ -10,13 +10,13 @@ from pathlib import Path
 
 import pytest
 
-# These imports will fail during RED phase
-from eedom.detectors.registry import DetectorRegistry
-from eedom.detectors.framework import BugDetector
+from eedom.core.models import FindingSeverity
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
-from eedom.core.models import FindingSeverity
+from eedom.detectors.framework import BugDetector
 
+# These imports will fail during RED phase
+from eedom.detectors.registry import DetectorRegistry
 
 # =============================================================================
 # Test Detector Classes
@@ -372,13 +372,15 @@ class TestDetectorRegistryThreadSafety:
         for i in range(5):
 
             class PreRegisteredDetector(BugDetector):
+                _idx = i  # Capture loop variable at class definition time
+
                 @property
                 def detector_id(self) -> str:
-                    return f"EED-PRE-{i:03d}"
+                    return f"EED-PRE-{self._idx:03d}"
 
                 @property
                 def name(self) -> str:
-                    return f"Pre-registered {i}"
+                    return f"Pre-registered {self._idx}"
 
                 @property
                 def category(self) -> DetectorCategory:

@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 from eedom.core.models import FindingSeverity
-from eedom.detectors.ast_utils import find_assignments, is_plain_type
+from eedom.detectors.ast_utils import is_plain_type
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
@@ -59,7 +59,6 @@ class SecretStrDetector(BugDetector):
 
     def detect(self, file_path: Path) -> list[DetectorFinding]:
         """Analyze file for secret fields using plain str."""
-        import ast
 
         content = file_path.read_text(encoding="utf-8")
         try:

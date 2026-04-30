@@ -7,9 +7,9 @@ reliability, configuration, and process domains.
 """
 from __future__ import annotations
 
-from eedom.detectors.framework import BugDetector
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
+from eedom.detectors.framework import BugDetector
 from eedom.detectors.registry import DetectorRegistry
 from eedom.detectors.scanner import DeterministicScanner
 

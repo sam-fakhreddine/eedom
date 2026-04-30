@@ -49,7 +49,7 @@ class TestedByAnnotationDetector(BugDetector):
         """Analyze file for tested-by annotation."""
         try:
             content = file_path.read_text(encoding="utf-8")
-        except (OSError, IOError):
+        except OSError:
             return []
 
         findings = []
@@ -69,7 +69,9 @@ class TestedByAnnotationDetector(BugDetector):
                     message="Source file missing # tested-by: annotation",
                     snippet=None,
                     issue_reference="#258",
-                    fix_hint=f"Add '# tested-by: tests/unit/test_{file_path.stem}.py' to top of file",
+                    fix_hint=(
+                        f"Add '# tested-by: tests/unit/test_{file_path.stem}.py' to top of file"
+                    ),
                 )
             )
         else:

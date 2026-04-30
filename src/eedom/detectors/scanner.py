@@ -11,7 +11,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from eedom.core.models import FindingCategory, FindingSeverity, ScanResult, ScanResultStatus
+from eedom.core.models import FindingSeverity, ScanResult, ScanResultStatus
 from eedom.data.scanners.base import Scanner
 from eedom.detectors.ast_utils import ASTCache
 from eedom.detectors.categories import DetectorCategory

@@ -6,18 +6,17 @@ These tests import from eedom.detectors which doesn't exist yet.
 """
 from __future__ import annotations
 
-import abc
 import tempfile
 from pathlib import Path
 
 import pytest
 
-# These imports will fail with ImportError during RED phase - expected!
-from eedom.detectors.framework import BugDetector
+from eedom.core.models import FindingCategory, FindingSeverity
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
-from eedom.core.models import FindingSeverity, FindingCategory
 
+# These imports will fail with ImportError during RED phase - expected!
+from eedom.detectors.framework import BugDetector
 
 # =============================================================================
 # BugDetector Base Class Tests
@@ -454,7 +453,7 @@ class TestDetectorFindingConversion:
 
 
 # =============================================================================
-# Suppression Tests (VAL-H2: # noqa: EED-XXX support)
+# Suppression Tests (VAL-H2: noqa EED-XXX comment support)
 # =============================================================================
 
 
