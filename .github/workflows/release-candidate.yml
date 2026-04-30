@@ -289,11 +289,14 @@ jobs:
       - name: Create GitHub prerelease
         run: |
           gh release create "$TAG_NAME" \
+            .release-candidate/dist/*.whl \
+            .release-candidate/dist/*.tar.gz \
+            .release-candidate/.temp/release-review.sarif \
+            .release-candidate/.temp/release-review.md \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "$TAG_NAME" \
             --notes-file .release-candidate/.temp/release-notes.md
-          gh release upload "$TAG_NAME" .release-candidate/dist/*.whl .release-candidate/dist/*.tar.gz --clobber
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ needs.release_candidate.outputs.tag_name }}

@@ -53,8 +53,8 @@ jobs:
           STORED=$(gh api repos/${{ github.repository }}/commits/"$SHA"/status \
             --jq '[.statuses[] | select(.context == "ci/release-key")] | first | .description')
           if [ -z "$STORED" ] || [ "$STORED" = "null" ]; then
-            echo "WARNING: No ci/release-key status found for $SHA — skipping verification" >&2
-            exit 0
+            echo "ERROR: No ci/release-key status found for $SHA — blocking publication" >&2
+            exit 1
           fi
           EXPECTED=$(python3 -c "import hmac,hashlib,os; print(hmac.new(os.environ['RELEASE_UNLOCK_WORD'].encode(), os.environ['VERIFY_SHA'].encode(), hashlib.sha256).hexdigest())")
           if [ "$STORED" = "$EXPECTED" ]; then
@@ -87,25 +87,26 @@ jobs:
         run: uv build
 
       - name: Generate SBOM
-        continue-on-error: true
         run: |
           uv tool install cyclonedx-bom --force
           cyclonedx-py environment -o sbom.cdx.json --of json
-          gh release upload ${{ needs.release-please.outputs.tag_name }} sbom.cdx.json
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - name: Attest build provenance (SLSA)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: dist/*
 
+      - name: Upload stable release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stable-release-${{ needs.release-please.outputs.tag_name }}
+          path: |
+            dist/*
+            sbom.cdx.json
+          retention-days: 30
+          if-no-files-found: error
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
           print-hash: true
-
-      - name: Upload to release
-        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" dist/*.whl dist/*.tar.gz
-        env:
-          GH_TOKEN: ${{ github.token }}
