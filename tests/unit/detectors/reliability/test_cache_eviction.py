@@ -1,6 +1,7 @@
 """Tests for Cache Eviction detector.
 # tested-by: tests/unit/detectors/reliability/test_cache_eviction.py
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -27,7 +28,7 @@ from functools import cache
 def get_data(key):
     return expensive_lookup(key)
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -46,7 +47,7 @@ from functools import lru_cache
 def get_data(key):
     return expensive_lookup(key)
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -63,7 +64,7 @@ from functools import lru_cache
 def get_data(key):
     return expensive_lookup(key)
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -84,7 +85,7 @@ def get_users():
 def get_items():
     return fetch_items()
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 

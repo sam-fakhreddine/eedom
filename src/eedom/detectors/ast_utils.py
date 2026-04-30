@@ -4,6 +4,7 @@
 Provides AST parsing, pattern matching, and visitor pattern batching
 for efficient multi-detector analysis (VAL-H1, ADR-DET-007).
 """
+
 from __future__ import annotations
 
 import ast
@@ -151,9 +152,7 @@ def matches_pattern(name: str, pattern: str) -> bool:
     return fnmatch.fnmatch(name, pattern)
 
 
-def find_function_calls(
-    tree: ast.AST, func_pattern: str
-) -> list[tuple[ast.Call, int]]:
+def find_function_calls(tree: ast.AST, func_pattern: str) -> list[tuple[ast.Call, int]]:
     """Find all calls matching pattern (e.g., 'jwt.encode', '*.execute').
 
     Args:
@@ -255,9 +254,7 @@ def get_decorators(
 # =============================================================================
 
 
-def find_assignments(
-    tree: ast.AST, var_pattern: str
-) -> list[ast.Assign | ast.AnnAssign]:
+def find_assignments(tree: ast.AST, var_pattern: str) -> list[ast.Assign | ast.AnnAssign]:
     """Find assignments to variables matching pattern.
 
     Args:
@@ -272,9 +269,7 @@ def find_assignments(
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for target in node.targets:
-                if isinstance(target, ast.Name) and matches_pattern(
-                    target.id, var_pattern
-                ):
+                if isinstance(target, ast.Name) and matches_pattern(target.id, var_pattern):
                     results.append(node)
         elif isinstance(node, ast.AnnAssign):
             if isinstance(node.target, ast.Name) and matches_pattern(  # noqa: SIM102
@@ -402,9 +397,7 @@ def contains_string_formatting(node: ast.AST) -> bool:
             return True
         # % formatting (BinOp with Mod)
         if isinstance(child, ast.BinOp) and isinstance(child.op, ast.Mod):
-            if isinstance(child.left, ast.Constant) and isinstance(
-                child.left.value, str
-            ):
+            if isinstance(child.left, ast.Constant) and isinstance(child.left.value, str):
                 return True
         # .format() call
         if isinstance(child, ast.Call):
@@ -440,9 +433,7 @@ def is_f_string_with_variable(node: ast.JoinedStr, var_name: str) -> bool:
 # =============================================================================
 
 
-def find_class_methods(
-    tree: ast.AST, class_name: str | None = None
-) -> list[ast.FunctionDef]:
+def find_class_methods(tree: ast.AST, class_name: str | None = None) -> list[ast.FunctionDef]:
     """Find all methods, optionally filtered by class name.
 
     Args:
@@ -489,9 +480,7 @@ def find_classes(tree: ast.AST, name_pattern: str | None = None) -> list[ast.Cla
 # =============================================================================
 
 
-def find_exception_handlers(
-    tree: ast.AST, exc_type: str | None = None
-) -> list[ast.ExceptHandler]:
+def find_exception_handlers(tree: ast.AST, exc_type: str | None = None) -> list[ast.ExceptHandler]:
     """Find exception handlers, optionally filtered by exception type.
 
     Args:
@@ -640,9 +629,7 @@ class BatchVisitor(ast.NodeVisitor):
         super().__init__()
         self._visitors: dict[str, list[Callable[[ast.AST], None]]] = {}
 
-    def register_visitor(
-        self, node_type: str, visitor_func: Callable[[ast.AST], None]
-    ) -> None:
+    def register_visitor(self, node_type: str, visitor_func: Callable[[ast.AST], None]) -> None:
         """Register a visitor function for a specific node type.
 
         Args:

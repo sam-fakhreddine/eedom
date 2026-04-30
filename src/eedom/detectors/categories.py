@@ -3,6 +3,7 @@
 
 Maps detector categories to FindingCategory values for scanner integration.
 """
+
 from __future__ import annotations
 
 import enum

@@ -5,6 +5,7 @@ Provides the BugDetector base class and supporting infrastructure for
 AST-based static analysis of code to detect bugs across security,
 reliability, configuration, and process domains.
 """
+
 from __future__ import annotations
 
 from eedom.detectors.categories import DetectorCategory

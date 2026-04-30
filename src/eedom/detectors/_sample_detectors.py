@@ -1,5 +1,5 @@
-"""Export sample detectors for framework demonstration.
-"""
+"""Export sample detectors for framework demonstration."""
+
 from eedom.detectors.process.tested_by import TestedByAnnotationDetector
 from eedom.detectors.reliability.cache_eviction import CacheEvictionDetector
 from eedom.detectors.security.jwt_audience import JWTAudienceDetector

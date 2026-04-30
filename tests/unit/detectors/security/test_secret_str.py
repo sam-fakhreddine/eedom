@@ -1,6 +1,7 @@
 """Tests for SecretStr detector.
 # tested-by: tests/unit/detectors/security/test_secret_str.py
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -22,7 +23,7 @@ class TestSecretStrDetector:
         """Detects api_key: str as a violation."""
         code = "api_key: str = 'secret123'"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -37,7 +38,7 @@ class TestSecretStrDetector:
         """No finding when using SecretStr."""
         code = "api_key: SecretStr = 'secret123'"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -49,7 +50,7 @@ class TestSecretStrDetector:
         """Detects password: str as a violation."""
         code = "password: str = 'hunter2'"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -62,7 +63,7 @@ class TestSecretStrDetector:
         """Detects secret_token: str as a violation."""
         code = "secret_token: str = 'abc123'"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -79,7 +80,7 @@ age: int = 30
 username: str = "alice123"
 """
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
@@ -91,7 +92,7 @@ username: str = "alice123"
         """Detects credential: str as a violation."""
         code = "credential: str = 'secret'"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
