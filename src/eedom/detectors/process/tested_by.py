@@ -13,8 +13,10 @@ from eedom.core.models import FindingSeverity
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
+from eedom.detectors.registry import DetectorRegistry
 
 
+@DetectorRegistry.register
 class TestedByAnnotationDetector(BugDetector):
     """Detects source files missing # tested-by: annotations.
 

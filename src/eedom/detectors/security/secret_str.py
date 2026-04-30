@@ -15,8 +15,10 @@ from eedom.detectors.ast_utils import is_plain_type
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
+from eedom.detectors.registry import DetectorRegistry
 
 
+@DetectorRegistry.register
 class SecretStrDetector(BugDetector):
     """Detects secret-eligible fields using plain str instead of SecretStr.
 

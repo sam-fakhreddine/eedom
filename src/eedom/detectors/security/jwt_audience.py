@@ -13,8 +13,10 @@ from eedom.detectors.ast_utils import find_function_calls, parse_file_safe
 from eedom.detectors.categories import DetectorCategory
 from eedom.detectors.findings import DetectorFinding
 from eedom.detectors.framework import BugDetector
+from eedom.detectors.registry import DetectorRegistry
 
 
+@DetectorRegistry.register
 class JWTAudienceDetector(BugDetector):
     """Detects jwt.encode() calls without 'aud' claim in payload.
 
