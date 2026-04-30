@@ -227,7 +227,7 @@ class TestDeterministicScannerCLIIntegration:
         from eedom.core.orchestrator import ScanOrchestrator
 
         scanner = DeterministicScanner()
-        orchestrator = ScanOrchestrator(scanners=[scanner])
+        orchestrator = ScanOrchestrator(scanners=[scanner], combined_timeout=300)
 
         # Should be able to add to orchestrator
         assert scanner in orchestrator._scanners
