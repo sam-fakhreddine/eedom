@@ -7,6 +7,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.14](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.13...eedom-v0.2.14) (2026-05-04)
+
+
+### Bug Fixes
+
+* **scancode:** add settings fields, copyright scan, and CycloneDX helper ([c5e7459](https://github.com/gitrdunhq/eedom/commit/c5e745941674501649d6394a9bff8acc5ad1124e))
+* **scancode:** re-enable can_run=True — diff-scoped + timeout configurable (closes [#335](https://github.com/gitrdunhq/eedom/issues/335)) ([8724015](https://github.com/gitrdunhq/eedom/commit/87240159a85fafe6d2118b36a9f1feb9ffdbe989))
+* **scancode:** scope plugin to changed files via --include + --strip-root ([d8c39ed](https://github.com/gitrdunhq/eedom/commit/d8c39edb2f818a2db52a70c1d9643fe9d3f6a781))
+
 ## [0.2.13](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.12...eedom-v0.2.13) (2026-05-04)
 
 
