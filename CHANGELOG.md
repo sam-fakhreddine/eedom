@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.15](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.14...eedom-v0.2.15) (2026-05-04)
+
+
+### Bug Fixes
+
+* **dockerfile:** re-declare SWIFTLINT_VERSION and SWIFTLINT_SHA256_AMD64 in builder stage ([e2e3e37](https://github.com/gitrdunhq/eedom/commit/e2e3e379b38c912c56e5dc24dfe0f30001abdcd6))
+
 ## [0.2.14](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.13...eedom-v0.2.14) (2026-05-04)
 
 
