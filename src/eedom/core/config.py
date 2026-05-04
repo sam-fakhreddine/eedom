@@ -69,6 +69,12 @@ class EedomSettings(BaseSettings):
     pipeline_timeout: int = 300
     pypi_timeout: int = 10
 
+    # OSV-Scanner path exclusions (passed as --experimental-exclude flags)
+    # Excludes e2e fixture dirs that contain intentionally pinned old deps.
+    osv_exclude_paths: list[str] = Field(
+        default=["tests/e2e/fixtures"],
+    )
+
     # OPA policy path
     opa_policy_path: str = "./policies/policy.rego"
 
@@ -83,6 +89,10 @@ class EedomSettings(BaseSettings):
 
     # Alternatives catalog
     alternatives_path: str = "./alternatives.json"
+
+    # ScanCode-specific tuning (closes #335)
+    scancode_timeout: int = 60
+    scancode_license_score: int = 0
 
     @classmethod
     def settings_customise_sources(

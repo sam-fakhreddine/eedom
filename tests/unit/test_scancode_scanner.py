@@ -11,7 +11,7 @@ from eedom.core.models import (
     FindingSeverity,
     ScanResultStatus,
 )
-from eedom.data.scanners.scancode import ScanCodeScanner
+from eedom.data.scanners.scancode import ScanCodeScanner, to_cyclonedx
 
 # ---------------------------------------------------------------------------
 # Fixtures: sample ScanCode JSON output
@@ -69,6 +69,24 @@ SCANCODE_NO_LICENSES = json.dumps(
                 "license_detections": [],
             },
         ],
+    }
+)
+
+SCAN_OUTPUT_WITH_COPYRIGHT = json.dumps(
+    {
+        "files": [
+            {
+                "path": "src/app.py",
+                "license_detections": [],
+                "copyrights": [
+                    {
+                        "copyright": "Copyright (c) 2024 Acme",
+                        "start_line": 1,
+                        "end_line": 1,
+                    }
+                ],
+            }
+        ]
     }
 )
 
@@ -173,3 +191,97 @@ class TestScanCodeScannerFailure:
         result = scanner.scan(Path("/project"))
 
         assert result.status == ScanResultStatus.failed
+
+
+class TestScanCodeScannerSettings:
+    """Tests for new timeout/license_score params (closes #335)."""
+
+    def test_accepts_timeout_and_license_score_params(self) -> None:
+        """ScanCodeScanner accepts timeout and license_score constructor params."""
+        scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"), timeout=30, license_score=50)
+        assert scanner is not None
+
+    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    def test_license_score_in_cmd_when_nonzero(self, mock_run: MagicMock) -> None:
+        """--license-score is added to the command when license_score > 0."""
+        mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
+        scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"), timeout=60, license_score=75)
+
+        scanner.scan(Path("/project"))
+
+        cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
+        assert "--license-score" in cmd
+        assert "75" in cmd
+
+    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    def test_license_score_absent_when_zero(self, mock_run: MagicMock) -> None:
+        """--license-score is NOT added when license_score == 0."""
+        mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
+        scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"), timeout=60, license_score=0)
+
+        scanner.scan(Path("/project"))
+
+        cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
+        assert "--license-score" not in cmd
+
+    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    def test_copyright_in_cmd(self, mock_run: MagicMock) -> None:
+        """--copyright is always present in the scancode command."""
+        mock_run.return_value = (0, SCANCODE_NO_LICENSES, "")
+        scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
+
+        scanner.scan(Path("/project"))
+
+        cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
+        assert "--copyright" in cmd
+
+    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    def test_copyright_findings_extracted(self, mock_run: MagicMock) -> None:
+        """Copyright detections produce FindingCategory.copyright findings."""
+        mock_run.return_value = (0, SCAN_OUTPUT_WITH_COPYRIGHT, "")
+        scanner = ScanCodeScanner(evidence_dir=Path("/tmp/evidence"))
+
+        result = scanner.scan(Path("/project"))
+
+        assert result.status == ScanResultStatus.success
+        copyright_findings = [f for f in result.findings if f.category == FindingCategory.copyright]
+        assert len(copyright_findings) == 1
+        assert "Copyright (c) 2024 Acme" in copyright_findings[0].description
+        assert copyright_findings[0].severity == FindingSeverity.info
+        assert copyright_findings[0].source_tool == "scancode"
+
+
+class TestToCyclonedx:
+    """Tests for the to_cyclonedx() standalone function."""
+
+    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    def test_cyclonedx_calls_scancode_with_cyclonedx_flag(self, mock_run: MagicMock) -> None:
+        """to_cyclonedx() invokes scancode with --cyclonedx."""
+        mock_run.return_value = (0, "", "")
+
+        result = to_cyclonedx(repo_path=Path("/project"), output_path=Path("/tmp/sbom.json"))
+
+        assert result is True
+        cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
+        assert "--cyclonedx" in cmd
+        assert "--license" in cmd
+        assert "--copyright" in cmd
+        assert "--package" in cmd
+
+    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    def test_cyclonedx_returns_false_on_failure(self, mock_run: MagicMock) -> None:
+        """to_cyclonedx() returns False on non-zero exit."""
+        mock_run.return_value = (1, "", "scancode error")
+
+        result = to_cyclonedx(repo_path=Path("/project"), output_path=Path("/tmp/sbom.json"))
+
+        assert result is False
+
+    @patch("eedom.data.scanners.scancode.run_subprocess_with_timeout")
+    def test_cyclonedx_returns_false_on_timeout(self, mock_run: MagicMock) -> None:
+        """to_cyclonedx() returns False on timeout."""
+        mock_run.return_value = (None, "", "timeout exceeded")
+
+        result = to_cyclonedx(repo_path=Path("/project"), output_path=Path("/tmp/sbom.json"))
+
+        assert result is False
