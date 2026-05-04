@@ -1,6 +1,6 @@
 [project]
 name = "eedom"
-version = "0.2.13"
+version = "0.2.14"
 description = "Eagle Eyed Dom — fully deterministic dependency and code review for CI"
 requires-python = ">=3.12"
 readme = "README.md"
@@ -29,7 +29,7 @@ dependencies = [
     "packaging==26.1",
     "jinja2==3.1.6",
     "pyyaml==6.0.3",
-    "rich==13.9.4",
+    "rich==15.0.0",
 ]
 
 [project.optional-dependencies]
