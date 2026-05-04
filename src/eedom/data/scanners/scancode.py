@@ -24,14 +24,14 @@ from eedom.data.scanners.base import Scanner, run_subprocess_with_timeout
 
 logger = structlog.get_logger()
 
-_TIMEOUT = 60
-
 
 class ScanCodeScanner(Scanner):
     """Detects license declarations using ScanCode."""
 
-    def __init__(self, evidence_dir: Path) -> None:
+    def __init__(self, evidence_dir: Path, timeout: int = 60, license_score: int = 0) -> None:
         self._evidence_dir = evidence_dir
+        self._timeout = timeout
+        self._license_score = license_score
 
     @property
     def name(self) -> str:
@@ -50,18 +50,21 @@ class ScanCodeScanner(Scanner):
         cmd = [
             "scancode",
             "--license",
+            "--copyright",
             "--json-pp",
             str(output_file),
-            str(target_path),
         ]
+        if self._license_score > 0:
+            cmd += ["--license-score", str(self._license_score)]
+        cmd.append(str(target_path))
 
-        returncode, stdout, stderr = run_subprocess_with_timeout(cmd=cmd, timeout=_TIMEOUT)
+        returncode, stdout, stderr = run_subprocess_with_timeout(cmd=cmd, timeout=self._timeout)
         elapsed = time.monotonic() - start
 
         # Timeout
         if returncode is None and stderr == "timeout exceeded":
             log.warning("scanner.timeout")
-            return ScanResult.timeout(self.name, _TIMEOUT)
+            return ScanResult.timeout(self.name, self._timeout)
 
         # Binary not found
         if returncode is None:
@@ -105,11 +108,12 @@ class ScanCodeScanner(Scanner):
 
 
 def _extract_findings(data: dict) -> list[Finding]:
-    """Walk the ScanCode JSON and build Finding objects for license detections."""
+    """Walk the ScanCode JSON and build Finding objects for license and copyright detections."""
     findings: list[Finding] = []
 
     for file_entry in data.get("files", []):
         file_path = file_entry.get("path", "unknown")
+
         for detection in file_entry.get("license_detections", []):
             spdx_id = detection.get("license_expression_spdx", "")
             if not spdx_id:
@@ -135,4 +139,36 @@ def _extract_findings(data: dict) -> list[Finding]:
                 )
             )
 
+        for holder in file_entry.get("copyrights", []):
+            statement = holder.get("copyright", "")
+            if statement:
+                findings.append(
+                    Finding(
+                        severity=FindingSeverity.info,
+                        category=FindingCategory.copyright,
+                        description=f"Copyright: {statement} in {file_path}",
+                        source_tool="scancode",
+                        package_name=file_path,
+                        version="",
+                    )
+                )
+
     return findings
+
+
+def to_cyclonedx(repo_path: Path, output_path: Path, timeout: int = 120) -> bool:
+    """Invoke scancode with --cyclonedx to produce a CycloneDX SBOM.
+
+    Returns True on success, False on failure or timeout.
+    """
+    cmd = [
+        "scancode",
+        "--license",
+        "--copyright",
+        "--package",
+        "--cyclonedx",
+        str(output_path),
+        str(repo_path),
+    ]
+    returncode, _stdout, _stderr = run_subprocess_with_timeout(cmd=cmd, timeout=timeout)
+    return returncode == 0
