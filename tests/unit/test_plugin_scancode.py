@@ -169,3 +169,53 @@ class TestScanCodePluginResults:
         result = ScanCodePlugin().run(["/repo/src/app.py"], Path("/repo"))
 
         assert result.error != ""
+
+
+SCAN_OUTPUT_WITH_COPYRIGHT = json.dumps(
+    {
+        "files": [
+            {
+                "path": "src/app.py",
+                "license_detections": [],
+                "copyrights": [
+                    {
+                        "copyright": "Copyright (c) 2024 Acme",
+                        "start_line": 1,
+                        "end_line": 1,
+                    }
+                ],
+            }
+        ]
+    }
+)
+
+
+class TestScanCodePluginCopyright:
+    """Tests for copyright detection in the plugin (closes #335)."""
+
+    @patch("eedom.plugins.scancode.subprocess.run")
+    def test_copyright_flag_in_cmd(self, mock_run: MagicMock):
+        """--copyright is always included in the scancode command."""
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = EMPTY_OUTPUT
+        mock_run.return_value.stderr = ""
+
+        ScanCodePlugin().run(["/repo/src/app.py"], Path("/repo"))
+
+        cmd = mock_run.call_args[0][0]
+        assert "--copyright" in cmd
+
+    @patch("eedom.plugins.scancode.subprocess.run")
+    def test_copyright_entries_produce_copyright_findings(self, mock_run: MagicMock):
+        """Copyright entries in JSON output produce findings with category 'copyright'."""
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = SCAN_OUTPUT_WITH_COPYRIGHT
+        mock_run.return_value.stderr = ""
+
+        result = ScanCodePlugin().run(["/repo/src/app.py"], Path("/repo"))
+
+        assert result.error == ""
+        copyright_findings = [f for f in result.findings if f.get("category") == "copyright"]
+        assert len(copyright_findings) == 1
+        assert copyright_findings[0]["copyright"] == "Copyright (c) 2024 Acme"
+        assert copyright_findings[0]["severity"] == "info"
