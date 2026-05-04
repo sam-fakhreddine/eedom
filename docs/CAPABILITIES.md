@@ -5,21 +5,21 @@
   a plugin, semgrep rule, code graph check, OPA policy rule, CLI command,
   output format, or integration. Keep counts accurate. See CLAUDE.md rule.
 
-  LAST VERIFIED: 2026-04-26
-  VERIFICATION: grep -c 'class.*ScannerPlugin' src/eedom/plugins/*.py → 18
+  LAST VERIFIED: 2026-05-04
+  VERIFICATION: grep -c 'class.*ScannerPlugin' src/eedom/plugins/*.py → 19
 -->
 
 ## Identity
 
 Eagle Eyed Dom — fully deterministic dependency, security, and code review for CI.
-18 plugins, 33 custom semgrep rules, 12 code graph checks, 6 OPA policy rules,
+19 plugins, 33 custom semgrep rules, 12 code graph checks, 6 OPA policy rules,
 600+ tests. Zero LLM in the decision path.
 
 ## Quick Numbers
 
 | Metric | Count |
 |--------|-------|
-| Scanner plugins | 18 (5 categories) |
+| Scanner plugins | 19 (5 categories) |
 | Custom semgrep rules | 33 (8 rule files) |
 | Code graph SQL checks | 12 |
 | OPA Rego policy rules | 6 (4 deny, 2 warn) |
@@ -56,13 +56,15 @@ Eagle Eyed Dom — fully deterministic dependency, security, and code review for
 | gitleaks | `plugins/gitleaks.py` | Secret/credential detection, 800+ patterns. Custom config via `.eedom/gitleaks.toml`. Secrets never appear in findings — only rule ID, file, line, entropy, fingerprint. Always critical severity. |
 | clamav | `plugins/clamav.py` | Malware/virus scanning via ClamAV (`clamscan`). Recursive repo scan. |
 
-### code (3)
+### code (5)
 
 | Plugin | File | Detects |
 |--------|------|---------|
 | semgrep | `plugins/semgrep.py` | AST code pattern matching. Dynamic ruleset selection by file extension (Python, TS, JS, Go, Ruby, Java, Terraform, K8s, Shell, Docker). 33 custom org rules (see below). Supports pinned local rule snapshots. |
 | cpd | `plugins/cpd.py` | PMD Copy-Paste Detector. Token-based duplication across 15 languages. Groups by language, sorts by token count, shows fragment preview. |
 | mypy | `plugins/mypy.py` | Cross-file type checking. Prefers pyright (faster, stricter) when available, falls back to mypy. Error + warning severity only. |
+| swiftlint | `plugins/swiftlint.py` | Swift style and code smell detection. 200+ built-in rules + 13 project-specific custom rules (NSLock→actor, @unchecked Sendable SAFETY, [weak self] in actor Task, removeFirst() O(n), URL interpolation, etc.). Respects `.eedom/swiftlint.yml` → `.swiftlint.yml` → bundled default. |
+| swiftformat | `plugins/swiftformat.py` | Swift formatting lint. Reports files that need reformatting (all auto-fixable with `swiftformat .`). INFO severity only. |
 
 ### quality (4)
 

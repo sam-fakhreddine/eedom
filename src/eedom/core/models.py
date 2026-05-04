@@ -95,6 +95,7 @@ class FindingCategory(enum.StrEnum):
 
     vulnerability = "vulnerability"
     license = "license"
+    copyright = "copyright"
     malicious = "malicious"
     malware = "malware"
     age = "age"
