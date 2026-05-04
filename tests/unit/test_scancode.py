@@ -10,11 +10,10 @@ from eedom.plugins.scancode import ScanCodePlugin
 
 
 class TestScanCodePluginDisabled:
-    def test_can_run_returns_false_while_disabled(self) -> None:
-        """Scancode is temporarily disabled — times out on large repos.
-        This test must fail when can_run is re-enabled. See GitHub issue."""
+    def test_can_run_returns_true(self) -> None:
+        """Scancode re-enabled — diff-scoped via --include, timeout configurable. Closes #335."""
         p = ScanCodePlugin()
-        assert p.can_run(["any.py"], Path(".")) is False
+        assert p.can_run(["any.py"], Path(".")) is True
 
     def test_name(self) -> None:
         assert ScanCodePlugin().name == "scancode"

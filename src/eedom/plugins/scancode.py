@@ -26,10 +26,7 @@ class ScanCodePlugin(ScannerPlugin):
         return PluginCategory.dependency
 
     def can_run(self, files: list[str], repo_path: Path) -> bool:
-        # Temporarily disabled — consistently times out on large repos at 180s.
-        # Re-enable once timeout is configurable and the scan is scoped to
-        # changed files only. Tracked: https://github.com/gitrdunhq/eedom/issues/335
-        return False
+        return True
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
         include_args: list[str] = []
