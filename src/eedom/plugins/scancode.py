@@ -1,5 +1,5 @@
 """ScanCode plugin — license detection.
-# tested-by: tests/unit/test_plugin_registry.py
+# tested-by: tests/unit/test_plugin_scancode.py
 """
 
 from __future__ import annotations
@@ -32,21 +32,37 @@ class ScanCodePlugin(ScannerPlugin):
         return False
 
     def run(self, files: list[str], repo_path: Path) -> PluginResult:
+        include_args: list[str] = []
+        for f in files:
+            try:
+                rel = Path(f).relative_to(repo_path)
+                include_args += ["--include", str(rel).replace("\\", "/")]
+            except ValueError:
+                continue
+
+        if not include_args:
+            return PluginResult(plugin_name=self.name, findings=[], summary={"total": 0})
+
+        cmd = [
+            "scancode",
+            "--license",
+            "--only-findings",
+            "--json-pp",
+            "-",
+            "--strip-root",
+            *include_args,
+            str(repo_path),
+        ]
+
         try:
-            r = subprocess.run(
-                ["scancode", "--license", "--json-pp", "-", str(repo_path)],
-                capture_output=True,
-                text=True,
-                timeout=180,
-                check=False,
-            )
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
         except FileNotFoundError:
             return PluginResult(
                 plugin_name=self.name, error=error_msg(ErrorCode.NOT_INSTALLED, "scancode")
             )
         except subprocess.TimeoutExpired:
             return PluginResult(
-                plugin_name=self.name, error=error_msg(ErrorCode.TIMEOUT, "scancode", timeout=180)
+                plugin_name=self.name, error=error_msg(ErrorCode.TIMEOUT, "scancode", timeout=60)
             )
 
         try:
