@@ -90,6 +90,10 @@ class EedomSettings(BaseSettings):
     # Alternatives catalog
     alternatives_path: str = "./alternatives.json"
 
+    # ScanCode-specific tuning (closes #335)
+    scancode_timeout: int = 60
+    scancode_license_score: int = 0
+
     @classmethod
     def settings_customise_sources(
         cls,

@@ -46,6 +46,7 @@ class ScanCodePlugin(ScannerPlugin):
         cmd = [
             "scancode",
             "--license",
+            "--copyright",
             "--only-findings",
             "--json-pp",
             "-",
@@ -86,6 +87,17 @@ class ScanCodePlugin(ScannerPlugin):
                         "category": "license",
                     }
                 )
+            for holder in f.get("copyrights", []):
+                statement = holder.get("copyright", "")
+                if statement:
+                    findings.append(
+                        {
+                            "file": f.get("path", ""),
+                            "copyright": statement,
+                            "severity": "info",
+                            "category": "copyright",
+                        }
+                    )
 
         return PluginResult(
             plugin_name=self.name,

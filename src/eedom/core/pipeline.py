@@ -130,7 +130,13 @@ class ReviewPipeline:
             elif name == "trivy":
                 scanners.append(d["TrivyScanner"]())
             elif name == "scancode":
-                scanners.append(d["ScanCodeScanner"](evidence_dir=evidence_path))
+                scanners.append(
+                    d["ScanCodeScanner"](
+                        evidence_dir=evidence_path,
+                        timeout=config.scancode_timeout,
+                        license_score=config.scancode_license_score,
+                    )
+                )
 
         orchestrator = ScanOrchestrator(
             scanners=scanners,
@@ -354,7 +360,13 @@ class ReviewPipeline:
             elif name == "trivy":
                 scanners.append(d["TrivyScanner"]())
             elif name == "scancode":
-                scanners.append(d["ScanCodeScanner"](evidence_dir=evidence_path))
+                scanners.append(
+                    d["ScanCodeScanner"](
+                        evidence_dir=evidence_path,
+                        timeout=config.scancode_timeout,
+                        license_score=config.scancode_license_score,
+                    )
+                )
 
         orchestrator = ScanOrchestrator(
             scanners=scanners,
