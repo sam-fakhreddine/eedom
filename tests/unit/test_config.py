@@ -157,3 +157,34 @@ class TestEedomSettings:
         # repr/str must not expose the value
         assert "sk-my-key" not in repr(settings.llm_api_key)
         assert settings.llm_api_key.get_secret_value() == "sk-my-key"
+
+    def test_scancode_timeout_default(self) -> None:
+        """scancode_timeout defaults to 60 (closes #335)."""
+        from eedom.core.config import EedomSettings
+
+        env = self._minimal_env()
+        with patch.dict(os.environ, env, clear=True):
+            settings = EedomSettings()
+
+        assert settings.scancode_timeout == 60
+
+    def test_scancode_license_score_default(self) -> None:
+        """scancode_license_score defaults to 0 (disabled) (closes #335)."""
+        from eedom.core.config import EedomSettings
+
+        env = self._minimal_env()
+        with patch.dict(os.environ, env, clear=True):
+            settings = EedomSettings()
+
+        assert settings.scancode_license_score == 0
+
+    def test_scancode_timeout_overridden_by_env(self) -> None:
+        """EEDOM_SCANCODE_TIMEOUT env var overrides the default."""
+        from eedom.core.config import EedomSettings
+
+        env = self._minimal_env()
+        env["EEDOM_SCANCODE_TIMEOUT"] = "30"
+        with patch.dict(os.environ, env, clear=True):
+            settings = EedomSettings()
+
+        assert settings.scancode_timeout == 30

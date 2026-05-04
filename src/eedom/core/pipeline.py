@@ -126,11 +126,17 @@ class ReviewPipeline:
             if name == "syft":
                 scanners.append(d["SyftScanner"](evidence_dir=evidence_path))
             elif name == "osv-scanner":
-                scanners.append(d["OsvScanner"]())
+                scanners.append(d["OsvScanner"](exclude_paths=config.osv_exclude_paths))
             elif name == "trivy":
                 scanners.append(d["TrivyScanner"]())
             elif name == "scancode":
-                scanners.append(d["ScanCodeScanner"](evidence_dir=evidence_path))
+                scanners.append(
+                    d["ScanCodeScanner"](
+                        evidence_dir=evidence_path,
+                        timeout=config.scancode_timeout,
+                        license_score=config.scancode_license_score,
+                    )
+                )
 
         orchestrator = ScanOrchestrator(
             scanners=scanners,
@@ -350,11 +356,17 @@ class ReviewPipeline:
             if name == "syft":
                 scanners.append(d["SyftScanner"](evidence_dir=evidence_path))
             elif name == "osv-scanner":
-                scanners.append(d["OsvScanner"]())
+                scanners.append(d["OsvScanner"](exclude_paths=config.osv_exclude_paths))
             elif name == "trivy":
                 scanners.append(d["TrivyScanner"]())
             elif name == "scancode":
-                scanners.append(d["ScanCodeScanner"](evidence_dir=evidence_path))
+                scanners.append(
+                    d["ScanCodeScanner"](
+                        evidence_dir=evidence_path,
+                        timeout=config.scancode_timeout,
+                        license_score=config.scancode_license_score,
+                    )
+                )
 
         orchestrator = ScanOrchestrator(
             scanners=scanners,
