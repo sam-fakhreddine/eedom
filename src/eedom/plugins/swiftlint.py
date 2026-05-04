@@ -1,5 +1,5 @@
 """SwiftLint plugin — Swift style and code smell detection.
-# tested-by: tests/unit/test_swiftlint_plugin.py
+# tested-by: tests/unit/test_swiftlint.py
 
 Wraps the SwiftLint CLI. Exit 0 = clean, 1 = violations found (normal).
 Custom rules bundled in policies/swiftlint/default.yml cover project-specific

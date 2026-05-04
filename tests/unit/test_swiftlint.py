@@ -1,5 +1,5 @@
 """Tests for SwiftLint plugin.
-# tested-by: tests/unit/test_swiftlint_plugin.py
+# tested-by: tests/unit/test_swiftlint.py
 """
 
 from __future__ import annotations
