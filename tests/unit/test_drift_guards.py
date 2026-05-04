@@ -85,10 +85,10 @@ def test_generate_plugin_inventory_matches_default_registry():
 
 
 # ---------------------------------------------------------------------------
-# 4. Plugin count matches docs/CAPABILITIES.md canonical count (18)
+# 4. Plugin count matches docs/CAPABILITIES.md canonical count (19)
 # ---------------------------------------------------------------------------
 
-_CAPABILITIES_PLUGIN_COUNT = 17
+_CAPABILITIES_PLUGIN_COUNT = 19
 
 
 def test_plugin_inventory_count_matches_capabilities_md():
