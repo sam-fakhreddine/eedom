@@ -52,6 +52,8 @@ class DockerPinDriftDetector(BugDetector):
 
     def detect(self, file_path: Path) -> list[DetectorFinding]:
         """Scan Dockerfile line by line for pin-drift and moving image tags."""
+        if not self.is_applicable(file_path):
+            return []
         try:
             lines = file_path.read_text(encoding="utf-8").splitlines()
         except Exception:
