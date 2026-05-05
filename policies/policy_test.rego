@@ -344,3 +344,74 @@ test_decision_approve if {
 	decision := policy.decision with input as clean_input
 	decision == "approve"
 }
+
+# --- T-348: Disabled package_age rule does not deny a just-published package ---
+
+test_disabled_package_age_no_deny if {
+	disabled_config := object.union(base_config, {"rules_enabled": object.union(
+		base_config.rules_enabled,
+		{"package_age": false},
+	)})
+	young_package := object.union(base_package, {
+		"first_published_date": "2099-01-01T00:00:00Z",
+	})
+	inp := {
+		"findings": [],
+		"pkg": young_package,
+		"config": disabled_config,
+	}
+	result := policy.deny with input as inp
+	count(result) == 0
+}
+
+# --- T-348: Disabled transitive_count rule does not warn even when count is extreme ---
+
+test_disabled_transitive_count_no_warn if {
+	disabled_config := object.union(base_config, {"rules_enabled": object.union(
+		base_config.rules_enabled,
+		{"transitive_count": false},
+	)})
+	heavy_package := object.union(base_package, {"transitive_dep_count": 500})
+	inp := {
+		"findings": [],
+		"pkg": heavy_package,
+		"config": disabled_config,
+	}
+	warn_result := policy.warn with input as inp
+	count(warn_result) == 0
+}
+
+# --- T-348: reject takes precedence when both deny and warn fire simultaneously ---
+
+test_reject_takes_precedence_when_deny_and_warn_both_fire if {
+	inp := {
+		"findings": [
+			{
+				"severity": "critical",
+				"category": "vulnerability",
+				"description": "RCE",
+				"package_name": "bad-pkg",
+				"version": "0.1.0",
+				"advisory_id": "CVE-2024-0001",
+				"source_tool": "osv-scanner",
+			},
+			{
+				"severity": "medium",
+				"category": "vulnerability",
+				"description": "Info leak",
+				"package_name": "bad-pkg",
+				"version": "0.1.0",
+				"advisory_id": "CVE-2024-0002",
+				"source_tool": "osv-scanner",
+			},
+		],
+		"pkg": object.union(base_package, {"transitive_dep_count": 500}),
+		"config": base_config,
+	}
+	deny_result := policy.deny with input as inp
+	count(deny_result) > 0
+	warn_result := policy.warn with input as inp
+	count(warn_result) > 0
+	decision := policy.decision with input as inp
+	decision == "reject"
+}
