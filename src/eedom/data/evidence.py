@@ -70,6 +70,7 @@ class EvidenceStore:
                 return ""
 
             final_path = dest_dir / artifact_name
+            final_path.parent.mkdir(parents=True, exist_ok=True)
 
             is_bytes = isinstance(content, bytes)
             mode = "wb" if is_bytes else "w"
@@ -132,6 +133,7 @@ class EvidenceStore:
                 return ""
 
             final_path = dest_dir / artifact_name
+            final_path.parent.mkdir(parents=True, exist_ok=True)
 
             fd, tmp_path = tempfile.mkstemp(dir=str(dest_dir))
             os.close(fd)
