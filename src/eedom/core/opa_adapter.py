@@ -19,6 +19,19 @@ log = structlog.get_logger()
 
 _OPA_TIMEOUT = 10
 
+_OPA_DEFAULT_CONFIG = {
+    "forbidden_licenses": [],
+    "max_transitive_deps": 200,
+    "min_package_age_days": 90,
+    "rules_enabled": {
+        "critical_vuln": True,
+        "forbidden_license": True,
+        "package_age": True,
+        "malicious_package": True,
+        "transitive_count": True,
+    },
+}
+
 
 class OpaRegoAdapter:
     """Evaluates policy against scanner findings via OPA binary through ToolRunnerPort.
@@ -27,9 +40,12 @@ class OpaRegoAdapter:
     to ToolRunnerPort, and maps OPA deny/warn output to PolicyDecision.
     """
 
-    def __init__(self, policy_path: str, tool_runner: ToolRunnerPort) -> None:
+    def __init__(
+        self, policy_path: str, tool_runner: ToolRunnerPort, timeout: int = _OPA_TIMEOUT
+    ) -> None:
         self._policy_path = policy_path
         self._tool_runner = tool_runner
+        self._timeout = timeout
 
     def evaluate(self, input: PolicyInput) -> PolicyDecision:
         """Evaluate findings against the OPA policy bundle.
@@ -57,7 +73,7 @@ class OpaRegoAdapter:
                         "data.policy",
                     ],
                     cwd=".",
-                    timeout=_OPA_TIMEOUT,
+                    timeout=self._timeout,
                 )
                 result = self._tool_runner.run(invocation)
         except Exception as exc:  # noqa: BLE001
@@ -87,10 +103,13 @@ class OpaRegoAdapter:
             }
             for f in input.findings
         ]
+        merged_config = dict(_OPA_DEFAULT_CONFIG)
+        if input.config:
+            merged_config.update(input.config)
         return {
             "findings": findings,
-            "packages": input.packages,
-            "config": input.config,
+            "pkg": input.packages[0] if input.packages else {},
+            "config": merged_config,
         }
 
     def _parse_output(self, stdout: str) -> PolicyDecision:
