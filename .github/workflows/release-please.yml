@@ -31,10 +31,13 @@ jobs:
           manifest-file: .release-please-manifest.json
 
       - name: Auto-merge release PR
-        if: steps.release.outputs.pr
         run: |
-          PR_NUM=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.number')
-          if [ "$PR_NUM" != "null" ] && [ -n "$PR_NUM" ]; then
+          PR_NUM=$(gh pr list \
+            --head "release-please--branches--main--components--eedom" \
+            --state open \
+            --json number \
+            --jq '.[0].number // ""')
+          if [ -n "$PR_NUM" ]; then
             gh pr edit "$PR_NUM" --remove-label "autorelease: pending" --add-label "autorelease: tagged" || true
             gh pr merge "$PR_NUM" --auto --rebase || true
           fi
