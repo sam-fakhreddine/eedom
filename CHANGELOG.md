@@ -7,6 +7,17 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.16](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.15...eedom-v0.2.16) (2026-05-05)
+
+
+### Bug Fixes
+
+* **ci:** add Gate fast-pass for release-please PRs ([ad35011](https://github.com/gitrdunhq/eedom/commit/ad350119372f61f741263ed14f18caaacf5a0ddd))
+* **ci:** use exact draft condition form required by policy test ([38a4f91](https://github.com/gitrdunhq/eedom/commit/38a4f91c7142c1d02ad17dcdb565091873d3298d))
+* **dockerfile:** add arm64 Python base digest — fixes opengrep NOT_INSTALLED on Apple Silicon ([4381a23](https://github.com/gitrdunhq/eedom/commit/4381a23590671891f1f96ef040b6947bc543dbed))
+* **dockerfile:** install escomplex-cli for full JS complexity analysis ([88f29eb](https://github.com/gitrdunhq/eedom/commit/88f29eb455ef943167e77daba22ddf82da6e35b8))
+* **trivy:** add --skip-dirs and --respect-gitignore to prevent overlay I/O crash ([be2e6c7](https://github.com/gitrdunhq/eedom/commit/be2e6c77a375ae8f1dc4e2658f56d04c25ad4155))
+
 ## [0.2.15](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.14...eedom-v0.2.15) (2026-05-04)
 
 
