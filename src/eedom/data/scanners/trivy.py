@@ -38,6 +38,9 @@ _SEVERITY_MAP: dict[str, FindingSeverity] = {
 class TrivyScanner(Scanner):
     """Detects known vulnerabilities using Trivy filesystem scan."""
 
+    def __init__(self, timeout: int = _TIMEOUT) -> None:
+        self._timeout = timeout
+
     @property
     def name(self) -> str:
         return "trivy"
@@ -62,13 +65,13 @@ class TrivyScanner(Scanner):
             "--respect-gitignore",
             str(target_path),
         ]
-        returncode, stdout, stderr = run_subprocess_with_timeout(cmd=cmd, timeout=_TIMEOUT)
+        returncode, stdout, stderr = run_subprocess_with_timeout(cmd=cmd, timeout=self._timeout)
         elapsed = time.monotonic() - start
 
         # Timeout
         if returncode is None and stderr == "timeout exceeded":
             log.warning("scanner.timeout")
-            return ScanResult.timeout(self.name, _TIMEOUT)
+            return ScanResult.timeout(self.name, self._timeout)
 
         # Binary not found
         if returncode is None:
