@@ -47,6 +47,7 @@ class CspellPlugin(ScannerPlugin):
             "@cspell/cspell-json-reporter",
             "--no-progress",
             "--no-summary",
+            "--gitignore",
             *rel_files,
         ]
 
