@@ -443,6 +443,26 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # ── Gate (release-please fast-pass) ──────────────────────────────────────────
+  # release-please branches are skipped by preflight, so the main Gate job never
+  # fires. Branch protection requires Gate → auto-merge blocks indefinitely.
+  # This job provides a passing Gate check for release-please PRs only.
+
+  gate-release-please:
+    name: Gate
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false &&
+      startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Auto-pass — release-please PR (CHANGELOG + version bump only)
+        run: |
+          echo "Release-please PR — Gate auto-passed."
+          echo "Contents: CHANGELOG.md and version file updates only."
+          echo "No code changes require lint/test/review."
+
   # ── Gate: verdict + labels + comments (waits for all parallel jobs) ──
 
   gate:
@@ -453,6 +473,7 @@ jobs:
       !cancelled() &&
       github.event_name != 'push' &&
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
+      !startsWith(github.head_ref || '', 'release-please--') &&
       needs.preflight.result == 'success' &&
       needs.preflight.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
