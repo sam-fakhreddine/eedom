@@ -224,7 +224,11 @@ def bootstrap(settings: EedomSettings) -> ApplicationContext:
     # OPA policy path — use the bundled policies directory by default.
     policy_path = str(Path(__file__).parent.parent.parent.parent / "policies" / "policy.rego")
 
-    policy_engine = OpaRegoAdapter(policy_path=policy_path, tool_runner=tool_runner)
+    policy_engine = OpaRegoAdapter(
+        policy_path=policy_path,
+        tool_runner=tool_runner,
+        timeout=getattr(settings, "opa_timeout", 10),
+    )
 
     return ApplicationContext(
         analyzer_registry=registry,
