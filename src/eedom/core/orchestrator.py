@@ -47,38 +47,41 @@ class ScanOrchestrator:
 
         results_by_index: dict[int, ScanResult] = {}
 
-        with ThreadPoolExecutor(max_workers=len(self._scanners)) as executor:
-            future_to_idx: dict[Future[ScanResult], int] = {
-                executor.submit(scanner.scan, target_path): i
-                for i, scanner in enumerate(self._scanners)
-            }
+        executor = ThreadPoolExecutor(max_workers=len(self._scanners))
+        future_to_idx: dict[Future[ScanResult], int] = {
+            executor.submit(scanner.scan, target_path): i
+            for i, scanner in enumerate(self._scanners)
+        }
 
-            remaining = max(0.0, self._combined_timeout - (time.monotonic() - wall_start))
+        remaining = max(0.0, self._combined_timeout - (time.monotonic() - wall_start))
 
-            try:
-                for future in as_completed(future_to_idx, timeout=remaining):
-                    idx = future_to_idx[future]
-                    scanner = self._scanners[idx]
-                    try:
-                        result = future.result()
-                    except Exception as exc:
-                        log.error(
-                            "orchestrator.scanner_exception",
-                            scanner=scanner.name,
-                            error=str(exc),
-                        )
-                        result = ScanResult.failed(scanner.name, str(exc))
-                    log.info(
-                        "orchestrator.scanner_complete",
+        try:
+            for future in as_completed(future_to_idx, timeout=remaining):
+                idx = future_to_idx[future]
+                scanner = self._scanners[idx]
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    log.error(
+                        "orchestrator.scanner_exception",
                         scanner=scanner.name,
-                        status=result.status,
+                        error=str(exc),
                     )
-                    results_by_index[idx] = result
-            except TimeoutError:
-                log.warning(
-                    "orchestrator.combined_timeout",
-                    elapsed=time.monotonic() - wall_start,
+                    result = ScanResult.failed(scanner.name, str(exc))
+                log.info(
+                    "orchestrator.scanner_complete",
+                    scanner=scanner.name,
+                    status=result.status,
                 )
+                results_by_index[idx] = result
+        except TimeoutError:
+            log.warning(
+                "orchestrator.combined_timeout",
+                elapsed=time.monotonic() - wall_start,
+            )
+            executor.shutdown(wait=False, cancel_futures=True)
+        else:
+            executor.shutdown(wait=True)
 
         # Any scanner that did not complete within the combined timeout → skipped
         for i, scanner in enumerate(self._scanners):

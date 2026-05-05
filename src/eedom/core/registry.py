@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -152,16 +153,22 @@ class PluginRegistry:
         if package_units is not None:
             return self._run_all_per_package(files, repo_path, plugins, package_units)
 
-        results: list[PluginResult] = []
-        for plugin in plugins:
+        # Run independent plugins in parallel; preserve original ordering.
+        def _task(indexed_plugin: tuple[int, ScannerPlugin]) -> tuple[int, PluginResult]:
+            idx, plugin = indexed_plugin
             plugin_files = (
                 repo_files
                 if repo_files is not None and plugin.category in self._REPO_WIDE_CATEGORIES
                 else files
             )
-            results.append(self._run_one(plugin, plugin_files, repo_path))
+            return idx, self._run_one(plugin, plugin_files, repo_path)
 
-        return results
+        results_dict: dict[int, PluginResult] = {}
+        with ThreadPoolExecutor(max_workers=min(len(plugins), 8)) as pool:
+            for idx, result in pool.map(_task, enumerate(plugins)):
+                results_dict[idx] = result
+
+        return [results_dict[i] for i in range(len(plugins))]
 
     def _run_all_per_package(
         self,
