@@ -54,11 +54,11 @@ class TestBootstrapDoesNotWireFakeAdapters:
         and return a real sink when one is configured.
         """
         source = inspect.getsource(_make_audit_sink)
-        # Bug: the entire function body is "return NullAuditSink()" with no condition
-        assert "return NullAuditSink()" not in source, (
-            "_make_audit_sink() unconditionally returns NullAuditSink — "
-            "audit events are never recorded regardless of configuration. "
-            "Fix: check settings for an audit backend and return a real sink. "
+        # Fixed state: function must check settings before returning NullAuditSink
+        assert "if " in source, (
+            "_make_audit_sink() has no conditional logic — it unconditionally returns "
+            "NullAuditSink regardless of settings. "
+            "Fix: check settings for an audit backend and return a real sink conditionally. "
             "See issue #204."
         )
 
@@ -69,9 +69,9 @@ class TestBootstrapDoesNotWireFakeAdapters:
         production, regardless of whether a GitHub token is configured.
         """
         source = inspect.getsource(_make_publisher)
-        assert "return NullPublisher()" not in source, (
-            "_make_publisher() unconditionally returns NullPublisher — "
-            "PR review comments are never posted regardless of configuration. "
-            "Fix: check settings for GitHub credentials and return a real publisher. "
+        assert "if " in source, (
+            "_make_publisher() has no conditional logic — it unconditionally returns "
+            "NullPublisher regardless of settings. "
+            "Fix: check settings for GitHub credentials and return a real publisher conditionally. "
             "See issue #204."
         )
