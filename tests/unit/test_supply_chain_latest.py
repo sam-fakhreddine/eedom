@@ -128,6 +128,45 @@ class TestComposeLatestDetection:
         findings = _compose_findings(content, tmp_path)
         assert findings == []
 
+
+class TestUnpinnedWorktreeExclusion:
+    """package.json files inside .claude/worktrees and .wfc must not be scanned."""
+
+    def test_claude_worktrees_excluded(self, tmp_path):
+        """package.json inside .claude/worktrees must not produce findings."""
+        worktree = tmp_path / ".claude" / "worktrees" / "agent-abc" / "ba-pipeline"
+        worktree.mkdir(parents=True)
+        pkg = worktree / "package.json"
+        pkg.write_text('{"dependencies": {"react": "^18.0.0"}}')
+
+        plugin = SupplyChainPlugin()
+        findings = plugin._check_unpinned(tmp_path)
+
+        assert findings == [], f"Expected no findings from .claude worktree, got {findings}"
+
+    def test_wfc_dir_excluded(self, tmp_path):
+        """package.json inside .wfc must not produce findings."""
+        wfc_dir = tmp_path / ".wfc" / "some" / "nested"
+        wfc_dir.mkdir(parents=True)
+        pkg = wfc_dir / "package.json"
+        pkg.write_text('{"dependencies": {"lodash": "*"}}')
+
+        plugin = SupplyChainPlugin()
+        findings = plugin._check_unpinned(tmp_path)
+
+        assert findings == [], f"Expected no findings from .wfc dir, got {findings}"
+
+    def test_real_package_json_still_scanned(self, tmp_path):
+        """package.json at the repo root is still scanned normally."""
+        pkg = tmp_path / "package.json"
+        pkg.write_text('{"dependencies": {"express": "^4.18.0"}}')
+
+        plugin = SupplyChainPlugin()
+        findings = plugin._check_unpinned(tmp_path)
+
+        assert len(findings) == 1
+        assert findings[0]["package"] == "express"
+
     def test_digest_pinned_image_not_flagged(self, tmp_path):
         content = "services:\n  app:\n    image: redis@sha256:abc123\n"
         findings = _compose_findings(content, tmp_path)

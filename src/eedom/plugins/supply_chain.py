@@ -216,7 +216,8 @@ class SupplyChainPlugin(ScannerPlugin):
         findings: list[dict] = []
 
         for pkg in repo.rglob("package.json"):
-            if "node_modules" in str(pkg) or ".git" in str(pkg):
+            pkg_str = str(pkg)
+            if any(seg in pkg_str for seg in ("node_modules", ".git", ".claude", ".wfc")):
                 continue
             rel = str(pkg.relative_to(repo))
             try:
