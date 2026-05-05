@@ -70,7 +70,9 @@ class SyftScanner(Scanner):
         raw_output_path: str | None = None
         try:
             self._evidence_dir.mkdir(parents=True, exist_ok=True)
-            evidence_file = self._evidence_dir / "syft-sbom.json"
+            evidence_file = (self._evidence_dir / "syft-sbom.json").resolve()
+            if not evidence_file.is_relative_to(self._evidence_dir.resolve()):
+                raise OSError("evidence path escapes evidence directory")
             evidence_file.write_text(stdout, encoding="utf-8")
             raw_output_path = str(evidence_file)
         except OSError as exc:
