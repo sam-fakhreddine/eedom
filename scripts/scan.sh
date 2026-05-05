@@ -29,7 +29,8 @@ if [ ! -d "${REPO}" ]; then
     exit 1
 fi
 
-mkdir -p "${REPO}/.temp"
+TRIVY_CACHE="${HOME}/.cache/eedom/trivy"
+mkdir -p "${TRIVY_CACHE}"
 
 echo "=== Eagle Eyed Dom ==="
 echo "Target : ${REPO}"
@@ -37,10 +38,18 @@ echo "Format : ${FORMAT}"
 echo "Image  : ${IMAGE}"
 echo ""
 
+# Prune any crashed containers from previous runs before starting.
+# A crashed scan leaves a leaked overlay layer that accumulates and fills the VM disk.
+podman container prune -f >/dev/null 2>&1 || true
+
 podman run --rm \
     --platform "${PLATFORM}" \
     --security-opt apparmor=unconfined \
+    --tmpfs /workspace/.temp:rw,size=512m \
     -v "${REPO}:/workspace:ro" \
-    -v "${REPO}/.temp:/workspace/.temp" \
+    -v "${TRIVY_CACHE}:/home/eedom/.cache/trivy" \
     "${IMAGE}" review --repo-path /workspace --all \
     ${FORMAT:+--format "${FORMAT}"}
+
+# Prune dangling layers after a successful run.
+podman system prune -f --volumes >/dev/null 2>&1 || true
