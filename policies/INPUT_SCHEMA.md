@@ -1,7 +1,10 @@
 # OPA Policy — Input Schema
 
 The `policy` package expects a single JSON input object with three top-level keys:
-`findings`, `package`, and `config`.
+`findings`, `pkg`, and `config`.
+
+> **Note:** The OPA adapter must emit `"pkg"` as the key — not `"package"` (reserved
+> in Rego v1) and not `"packages"`. See #202 for the adapter bug that used `"packages"`.
 
 ## `input.findings` — array of scanner findings
 
@@ -18,7 +21,7 @@ Each element represents a single finding from a security scanner.
 | `source_tool` | string | yes | Scanner that produced this finding (e.g. `osv-scanner`, `trivy`) |
 | `license_id` | string | conditional | SPDX license identifier. Required when `category` is `"license"` |
 
-## `input.package` — metadata about the package under evaluation
+## `input.pkg` — metadata about the package under evaluation
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

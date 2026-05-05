@@ -126,3 +126,14 @@ class TestCspellStderrSuppression:
         assert "src/app.py" in cmd
         assert "lib/util.py" in cmd
         assert "/workspace/src/app.py" not in cmd
+
+    @patch("eedom.plugins.cspell.subprocess.run")
+    def test_command_includes_gitignore_flag(self, mock_run):
+        """--gitignore must be passed so cspell skips node_modules and other ignored paths."""
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.stderr = ""
+        p = CspellPlugin()
+        p.run(["app.py"], Path("."))
+        cmd = mock_run.call_args[0][0]
+        assert "--gitignore" in cmd

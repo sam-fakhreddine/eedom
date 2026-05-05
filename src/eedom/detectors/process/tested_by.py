@@ -1,5 +1,5 @@
 """TestedByAnnotationDetector - Checks for # tested-by annotations.
-# tested-by: tests/unit/detectors/test_deterministic_tested_by_guards.py
+# tested-by: tests/unit/detectors/process/test_tested_by.py
 
 GitHub issue: #258
 """
@@ -80,12 +80,13 @@ class TestedByAnnotationDetector(BugDetector):
         else:
             # Validate that referenced test file exists
             test_path_str = match.group(1)
-            test_path = file_path.parent / test_path_str
-            if not test_path.exists():
-                # Try relative to repo root
-                test_path = Path(test_path_str)
+            root = file_path.resolve().parent
+            candidate = (root / test_path_str).resolve()
+            if not candidate.is_relative_to(root) or not candidate.exists():
+                # Try relative to cwd (repo root)
+                candidate = Path(test_path_str).resolve()
 
-            if not test_path.exists():
+            if not candidate.exists():
                 findings.append(
                     DetectorFinding(
                         detector_id=self.detector_id,
