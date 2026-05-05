@@ -144,5 +144,5 @@ class TestReleaseGateBypassDetector:
         findings = detector.detect(f)
 
         lines = BUGGY_YAML.splitlines()
-        exit_zero_line = next(i + 1 for i, l in enumerate(lines) if "exit 0" in l)
+        exit_zero_line = next(i + 1 for i, ln in enumerate(lines) if "exit 0" in ln)
         assert findings[0].line_number == exit_zero_line

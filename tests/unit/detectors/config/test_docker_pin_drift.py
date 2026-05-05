@@ -70,16 +70,12 @@ class TestDockerPinDriftDetector:
         assert len(findings) == 0
 
     def test_python_file_not_applicable(self, detector, tmp_path):
-        """Python files are not targeted — detect returns empty list."""
+        """Python files are not targeted — detect_safe skips them via is_applicable."""
         py_file = tmp_path / "main.py"
         py_file.write_text("pip install mypkg==1.2.3\n")
 
-        # Confirm is_applicable returns False
         assert not detector.is_applicable(py_file)
-
-        findings = detector.detect(py_file)
-
-        assert len(findings) == 0
+        assert detector.detect_safe(py_file) == []
 
     def test_line_numbers_are_one_indexed(self, detector, tmp_path):
         """Finding line_number must be >= 1."""
