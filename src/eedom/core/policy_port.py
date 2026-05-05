@@ -10,9 +10,31 @@ Defines the three public symbols used at the policy evaluation seam:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from enum import StrEnum
+from typing import Protocol, TypedDict, runtime_checkable
 
 from eedom.core.plugin import PluginFinding
+
+
+class PackageMetadata(TypedDict, total=False):
+    """Typed shape for package metadata crossing the PolicyEnginePort boundary."""
+
+    name: str
+    version: str
+    ecosystem: str
+    scope: str
+    first_published_date: str
+    transitive_dep_count: int
+    environment_sensitivity: str
+
+
+class PolicyConfigDict(TypedDict, total=False):
+    """Typed shape for policy configuration options."""
+
+    forbidden_licenses: list[str]
+    max_transitive_deps: int
+    min_package_age_days: int
+    rules_enabled: dict[str, bool]
 
 
 @dataclass
@@ -20,15 +42,24 @@ class PolicyInput:
     """Inputs passed to a policy engine for evaluation."""
 
     findings: list[PluginFinding]
-    packages: list[dict]
-    config: dict
+    packages: list[PackageMetadata]
+    config: PolicyConfigDict
+
+
+class PolicyVerdict(StrEnum):
+    """Enumeration of all valid policy evaluation outcomes."""
+
+    approve = "approve"
+    reject = "reject"
+    approve_with_constraints = "approve_with_constraints"
+    needs_review = "needs_review"
 
 
 @dataclass
 class PolicyDecision:
     """Result returned by a policy engine after evaluating a PolicyInput."""
 
-    verdict: str
+    verdict: PolicyVerdict
     deny_reasons: list[str] = field(default_factory=list)
     warn_reasons: list[str] = field(default_factory=list)
     triggered_rules: list[str] = field(default_factory=list)
