@@ -17,6 +17,8 @@ ARG SCANCODE_VERSION=32.3.0
 ARG LIZARD_VERSION=1.17.13
 ARG MYPY_VERSION=1.15.0
 ARG CSPELL_VERSION=8.18.1
+ARG AWS_CDK_VERSION=2.1120.0
+ARG CFN_NAG_VERSION=0.8.10
 ARG LS_LINT_VERSION=2.3.1
 ARG PMD_VERSION=7.24.0
 ARG SWIFTLINT_VERSION=0.57.1
@@ -64,7 +66,7 @@ ARG UV_COMMIT=0e961dd9a2bb6f73493d9e8398b725ad2d3b3837
 
 # ════════════════════════════════════════════════════════════════════════════
 # Arch-aware Python base — select the right platform image before Stage 1.
-# Each digest is the platform-specific manifest for python:3.12.13-slim-bookworm.
+# Each digest is the platform-specific manifest for python:3.12.13 on Debian 13 (trixie).
 # TARGETARCH is injected by BuildKit from --platform (default: amd64).
 # ════════════════════════════════════════════════════════════════════════════
 ARG TARGETARCH=amd64
@@ -255,7 +257,8 @@ ARG PMD_VERSION
 LABEL org.opencontainers.image.title="Eagle Eyed Dom" \
       org.opencontainers.image.description="DHI hardened multi-stage production scanner" \
       org.opencontainers.image.source="https://github.com/gitrdunhq/eedom" \
-      org.opencontainers.image.base.revision="3362634339580d3232e65a66dd5a36c47ae7ff14"
+      org.opencontainers.image.base.revision.amd64="3362634339580d3232e65a66dd5a36c47ae7ff14" \
+      org.opencontainers.image.base.revision.arm64="9420c53ba876a39b83e2f08732920b62782c33d94cd04860a13c3eaf9dc1a5b0"
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
@@ -264,12 +267,25 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
       git clamav clamav-freshclam libicu76 libarchive13t64 ca-certificates curl gnupg \
-      default-jre-headless ruby ruby-dev build-essential \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g "cspell@${CSPELL_VERSION}" "@cspell/cspell-json-reporter" "aws-cdk" "escomplex-cli" --no-fund --no-audit \
+      default-jre-headless ruby ruby-dev build-essential
+
+# ── Node.js 22 — GPG-verified repo, no curl|bash ─────────────────────────────
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+         | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+         > /etc/apt/sources.list.d/nodesource.list
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g \
+         "cspell@${CSPELL_VERSION}" \
+         "@cspell/cspell-json-reporter@${CSPELL_VERSION}" \
+         "aws-cdk@${AWS_CDK_VERSION}" \
+         --no-fund --no-audit \
     && npm cache clean --force \
-    && gem install cfn-nag --no-document \
+    && gem install "cfn-nag" -v "${CFN_NAG_VERSION}" --no-document \
     && apt-get purge -y build-essential ruby-dev curl gnupg \
     && apt-get autoremove -y
 
