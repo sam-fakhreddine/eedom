@@ -189,17 +189,44 @@ def _make_decision_store(settings: EedomSettings) -> DecisionStorePort:
 
 
 def _make_audit_sink(settings: EedomSettings) -> AuditSinkPort:
-    """Return the appropriate AuditSinkPort for *settings*."""
+    """Return EvidenceStore-backed audit sink when evidence_path is set, NullAuditSink otherwise."""
+    import structlog
+
     from eedom.adapters.persistence import NullAuditSink
 
+    log = structlog.get_logger()
+    evidence_path = getattr(settings, "evidence_path", None)
+    if evidence_path:
+        from eedom.data.evidence import EvidenceStore
+
+        return EvidenceStore(root_path=str(evidence_path))
+    log.warning("audit_sink_null", msg="No EEDOM_EVIDENCE_PATH — audit events not persisted")
     return NullAuditSink()
 
 
 def _make_publisher(settings: EedomSettings) -> PullRequestPublisherPort:
-    """Return the appropriate PullRequestPublisherPort for *settings*."""
+    """Return GitHubPublisher when EEDOM_GITHUB_TOKEN is set, NullPublisher otherwise."""
+    import structlog
+
     from eedom.adapters.github_publisher import NullPublisher
 
+    log = structlog.get_logger()
+    token = getattr(settings, "github_token", None)
+    if token:
+        secret = token.get_secret_value() if hasattr(token, "get_secret_value") else str(token)
+        if secret:
+            from eedom.adapters.github_publisher import GitHubPublisher
+
+            return GitHubPublisher(token=secret)
+    log.warning("publisher_null", msg="No EEDOM_GITHUB_TOKEN — PR comments will not be posted")
     return NullPublisher()
+
+
+def _make_package_index(settings: EedomSettings):
+    """Return a real PyPI package index."""
+    from eedom.data.pypi import PyPIClient
+
+    return PyPIClient(timeout=getattr(settings, "pypi_timeout", 30))
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +263,7 @@ def bootstrap(settings: EedomSettings) -> ApplicationContext:
         tool_runner=tool_runner,
         decision_store=_make_decision_store(settings),
         evidence_store=FileEvidenceStore(base_dir=Path(settings.evidence_path)),
-        package_index=_FakePackageIndex(),
+        package_index=_make_package_index(settings),
         audit_sink=_make_audit_sink(settings),
         publisher=_make_publisher(settings),
     )
