@@ -8,6 +8,7 @@ core pipeline logic independently testable.
 
 from __future__ import annotations
 
+import contextlib
 import time
 from pathlib import Path
 
@@ -301,6 +302,8 @@ class ReviewPipeline:
 
         finally:
             db.close()
+            with contextlib.suppress(Exception):
+                pypi_client.close()
 
         return decisions
 
@@ -485,7 +488,20 @@ class ReviewPipeline:
                         )
                     )
 
+            # Mirror evaluate(): append decisions to parquet audit log (fail-open)
+            d["append_decisions"](Path(config.evidence_path), decisions, run_id)
+
+            # Mirror evaluate(): seal all evidence artifacts for this run (fail-open)
+            try:
+                evidence_run_dir = Path(config.evidence_path) / run_id
+                previous_hash = find_previous_seal_hash(Path(config.evidence_path), run_id)
+                create_seal(evidence_run_dir, run_id, commit_sha, previous_hash)
+            except Exception:
+                logger.exception("seal_creation_failed", run_id=run_id)
+
         finally:
             db.close()
+            with contextlib.suppress(Exception):
+                pypi_client.close()
 
         return decisions
