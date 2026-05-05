@@ -25,8 +25,9 @@ _TIMEOUT = 60
 class SyftScanner(Scanner):
     """Generates a CycloneDX SBOM using Syft."""
 
-    def __init__(self, evidence_dir: Path) -> None:
+    def __init__(self, evidence_dir: Path, timeout: int = _TIMEOUT) -> None:
         self._evidence_dir = evidence_dir
+        self._timeout = timeout
 
     @property
     def name(self) -> str:
@@ -37,13 +38,13 @@ class SyftScanner(Scanner):
         log = logger.bind(scanner=self.name, target=str(target_path))
 
         cmd = ["syft", f"dir:{target_path}", "-o", "cyclonedx-json"]
-        returncode, stdout, stderr = run_subprocess_with_timeout(cmd=cmd, timeout=_TIMEOUT)
+        returncode, stdout, stderr = run_subprocess_with_timeout(cmd=cmd, timeout=self._timeout)
         elapsed = time.monotonic() - start
 
         # Timeout
         if returncode is None and stderr == "timeout exceeded":
             log.warning("scanner.timeout")
-            return ScanResult.timeout(self.name, _TIMEOUT)
+            return ScanResult.timeout(self.name, self._timeout)
 
         # Binary not found
         if returncode is None:
