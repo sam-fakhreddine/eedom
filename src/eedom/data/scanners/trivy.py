@@ -46,7 +46,22 @@ class TrivyScanner(Scanner):
         start = time.monotonic()
         log = logger.bind(scanner=self.name, target=str(target_path))
 
-        cmd = ["trivy", "fs", "--format", "json", "--scanners", "vuln", str(target_path)]
+        # Skip large/irrelevant directories to prevent Errno 5 I/O errors when
+        # scanning repos with heavy node_modules or build output via the container
+        # overlay filesystem (see issue #352). --respect-gitignore avoids scanning
+        # vendored and generated files declared in .gitignore.
+        cmd = [
+            "trivy",
+            "fs",
+            "--format",
+            "json",
+            "--scanners",
+            "vuln",
+            "--skip-dirs",
+            "node_modules,dist,.git",
+            "--respect-gitignore",
+            str(target_path),
+        ]
         returncode, stdout, stderr = run_subprocess_with_timeout(cmd=cmd, timeout=_TIMEOUT)
         elapsed = time.monotonic() - start
 

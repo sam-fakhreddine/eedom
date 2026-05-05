@@ -173,6 +173,51 @@ class TestTrivyScannerSuccess:
         assert "--scanners" in cmd
         assert "vuln" in cmd
 
+    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    def test_skip_dirs_excludes_node_modules_and_dist(self, mock_run: MagicMock) -> None:
+        """Trivy must pass --skip-dirs for node_modules, dist, and .git.
+
+        Scanning these directories on large repos causes Errno 5 I/O errors that
+        corrupt the container overlay filesystem and kill the podman runtime.
+        See issue #352.
+        """
+        mock_run.return_value = (0, TRIVY_OUTPUT_EMPTY_RESULTS, "")
+        scanner = TrivyScanner()
+
+        scanner.scan(Path("/project"))
+
+        cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
+        assert "--skip-dirs" in cmd, (
+            "trivy invocation is missing --skip-dirs. Scanning node_modules or dist "
+            "can cause Errno 5 I/O errors that corrupt the podman overlay storage. "
+            "Add --skip-dirs node_modules,dist,.git to the trivy command. See #352."
+        )
+        skip_idx = cmd.index("--skip-dirs")
+        skip_val = cmd[skip_idx + 1]
+        assert (
+            "node_modules" in skip_val
+        ), f"--skip-dirs value {skip_val!r} must include node_modules"
+        assert "dist" in skip_val, f"--skip-dirs value {skip_val!r} must include dist"
+
+    @patch("eedom.data.scanners.trivy.run_subprocess_with_timeout")
+    def test_respects_gitignore(self, mock_run: MagicMock) -> None:
+        """Trivy must pass --respect-gitignore to avoid scanning vendored/generated files.
+
+        Without this flag trivy scans everything including files declared in
+        .gitignore such as build output, vendored dependencies, and generated
+        lockfiles — wasting time and producing noise. See issue #352.
+        """
+        mock_run.return_value = (0, TRIVY_OUTPUT_EMPTY_RESULTS, "")
+        scanner = TrivyScanner()
+
+        scanner.scan(Path("/project"))
+
+        cmd = mock_run.call_args[1].get("cmd") or mock_run.call_args[0][0]
+        assert "--respect-gitignore" in cmd, (
+            "trivy invocation is missing --respect-gitignore. "
+            "Add it so trivy skips files declared in .gitignore. See #352."
+        )
+
 
 class TestTrivyScannerFailure:
     """Tests for Trivy failure modes."""
