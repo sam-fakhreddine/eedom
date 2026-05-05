@@ -1,5 +1,5 @@
 """TestedByAnnotationDetector - Checks for # tested-by annotations.
-# tested-by: tests/unit/detectors/test_deterministic_tested_by_guards.py
+# tested-by: tests/unit/detectors/process/test_tested_by.py
 
 GitHub issue: #258
 """
