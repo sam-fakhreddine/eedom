@@ -7,6 +7,21 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 Releases are managed by [release-please](https://github.com/googleapis/release-please).
 
+## [0.2.17](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.16...eedom-v0.2.17) (2026-05-05)
+
+
+### Bug Fixes
+
+* **bootstrap:** wire real audit sink, publisher, and PyPI index from settings ([#204](https://github.com/gitrdunhq/eedom/issues/204)) ([2e9088c](https://github.com/gitrdunhq/eedom/commit/2e9088cc89183176846a487eaa9f171616acafb3))
+* **evidence:** mkdir final_path.parent before atomic rename ([#208](https://github.com/gitrdunhq/eedom/issues/208)) ([21ce908](https://github.com/gitrdunhq/eedom/commit/21ce9081e00058eb08a16800d9df54e9f23625fc))
+* **opa-adapter:** emit pkg key, merge _DEFAULT_CONFIG, add timeout param ([#202](https://github.com/gitrdunhq/eedom/issues/202) [#209](https://github.com/gitrdunhq/eedom/issues/209)) ([57413f6](https://github.com/gitrdunhq/eedom/commit/57413f66fe5aae947dc9f017a7413cb699090105))
+* **orchestrator/registry:** cancel_futures on timeout + parallel plugin execution ([#207](https://github.com/gitrdunhq/eedom/issues/207) [#220](https://github.com/gitrdunhq/eedom/issues/220)) ([bd7be63](https://github.com/gitrdunhq/eedom/commit/bd7be639bf017bd6923401a5916edc69bdc8f031))
+* **pipeline_helpers:** route Pipfile/setup.py/setup.cfg/poetry.lock to SBOM diff + per-file parse_changes API ([#218](https://github.com/gitrdunhq/eedom/issues/218)) ([1b2fc70](https://github.com/gitrdunhq/eedom/commit/1b2fc70abb3db97cd983cf8f0a6b5f7c2cc9a69c))
+* **pipeline:** pypi_client.close() in finally + append_decisions/seal in evaluate_sbom ([#221](https://github.com/gitrdunhq/eedom/issues/221) [#217](https://github.com/gitrdunhq/eedom/issues/217)) ([2593019](https://github.com/gitrdunhq/eedom/commit/25930196465ab2196531ca3340742586dfa87917))
+* **policy_port:** PackageMetadata TypedDict + PolicyVerdict StrEnum + PolicyConfigDict ([#219](https://github.com/gitrdunhq/eedom/issues/219)) ([3141f02](https://github.com/gitrdunhq/eedom/commit/3141f0294d2fdda3b880a0b4e48b63e32d3fd066))
+* **scanners:** add configurable timeout to SyftScanner and TrivyScanner ([#209](https://github.com/gitrdunhq/eedom/issues/209)) ([a0a30ee](https://github.com/gitrdunhq/eedom/commit/a0a30ee33a3692c1e534f96080a86ee3fb4c5279))
+* **syft:** resolve + containment check on evidence file path (path-no-resolve-check) ([e5e1e6b](https://github.com/gitrdunhq/eedom/commit/e5e1e6be506323ff285c05a582233efa2fc1ecd2))
+
 ## [0.2.16](https://github.com/gitrdunhq/eedom/compare/eedom-v0.2.15...eedom-v0.2.16) (2026-05-05)
 
 
